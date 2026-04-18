@@ -512,7 +512,7 @@ STATS: ${JSON.stringify({ total: trades.length, wins: stats.wins, losses: stats.
 TRADES: ${JSON.stringify(trades.map(t => ({ date: t.date, day: t.day, time: t.time, pair: t.pair, type: t.type, pattern: patName(t.patternId), session: t.session, emotion: t.emotion || "—", result: t.result, pnl: t.pnl, riskPct: t.riskPct, notes: t.notes || "" })))}
 JSON: {"overallAssessment":"...","oneThingToFocusOn":"...","strengths":["..."],"weaknesses":["..."],"psychologyInsights":"...","bestDayTime":"...","bestPair":"...","actionPlan":["...","...","...","..."]}`;
     try {
-      const res = await fetch("/.netlify/functions/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, messages: [{ role: "user", content: prompt }] }) });
+      const res = await fetch("/.netlify/functions/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 1000, messages: [{ role: "user", content: prompt }] }) });
       const data = await res.json();
       const text = (data.content || []).map(b => b.text || "").join("");
       setAiResult(JSON.parse(text.replace(/```json|```/g, "").trim()));
@@ -761,7 +761,7 @@ PATTERN RULES: ${JSON.stringify(patRules)}
 HISTORY: ${JSON.stringify(history)}
 JSON: {"message":"2-3 sentences of direct coaching based on this result and their history","emoji":"one relevant emoji","tone":"positive|warning|neutral"}`;
       try {
-        const res = await fetch("/.netlify/functions/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 200, messages: [{ role: "user", content: prompt }] }) });
+        const res = await fetch("/.netlify/functions/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 200, messages: [{ role: "user", content: prompt }] }) });
         const data = await res.json();
         const text = (data.content || []).map(b => b.text || "").join("");
         setMiniCoach(JSON.parse(text.replace(/```json|```/g, "").trim()));
@@ -974,7 +974,7 @@ JSON format:
     try {
       const res = await fetch("/.netlify/functions/claude", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 800, messages: [{ role: "user", content: prompt }] })
+        body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 800, messages: [{ role: "user", content: prompt }] })
       });
       const data = await res.json();
       const text = (data.content || []).map(b => b.text || "").join("");
