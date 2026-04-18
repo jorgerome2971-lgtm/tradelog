@@ -102,6 +102,7 @@ export default function App() {
   const [trades, setTrades] = useState([]);
   const [patterns, setPatterns] = useState([]);
   const [pairs, setPairs] = useState([]);
+  const [backtests, setBacktests] = useState([]);
   const [modal, setModal] = useState(null);
   const [aiResult, setAiResult] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
@@ -129,11 +130,12 @@ export default function App() {
   useEffect(() => {
     const load = async () => {
       try {
-        const [a, t, p, pr] = await Promise.all([dbGet("accounts"), dbGet("trades"), dbGet("patterns"), dbGet("pairs")]);
+        const [a, t, p, pr, bt] = await Promise.all([dbGet("accounts"), dbGet("trades"), dbGet("patterns"), dbGet("pairs"), dbGet("backtests").catch(() => [])]);
         if (Array.isArray(a)) setAccounts(a.map(r => ({id:r.id, name:r.name, broker:r.broker, size:r.size, currency:r.currency, maxDaily:r.max_daily, maxDrawdown:r.max_drawdown})));
         if (Array.isArray(t)) setTrades(t.map(r => ({id:r.id, accountId:r.account_id, date:r.date, day:r.day, time:r.time, session:r.session, pair:r.pair, type:r.type, patternId:r.pattern_id, timeframe:r.timeframe, result:r.result, pnl:parseFloat(r.pnl)||0, riskPct:r.risk_pct, riskAmount:r.risk_amount, emotion:r.emotion, entryLink:r.entry_link, exitLink:r.exit_link, entryNotes:r.entry_notes, exitNotes:r.exit_notes, mistakes:r.mistakes})));
         if (Array.isArray(p)) setPatterns(p.map(r => ({id:r.id, name:r.name, timeframe:r.timeframe, session:r.session, pairs:r.pairs, description:r.description, rules:r.rules, confirmations:r.confirmations, imageLink:r.image_link})));
         if (Array.isArray(pr)) setPairs(pr.map(r => ({id:r.id, symbol:r.symbol, description:r.description||""})));
+        if (Array.isArray(bt)) setBacktests(bt.map(r => ({id:r.id, date:r.date, pair:r.pair, type:r.type, patternId:r.pattern_id, timeframe:r.timeframe, result:r.result, pnl:parseFloat(r.pnl)||0, session:r.session, notes:r.notes||"", reason:r.reason||""})));
       } catch (e) { setSaveStatus("⚠ Connection error"); }
       setLoading(false);
     };
@@ -193,16 +195,31 @@ export default function App() {
     setTimeout(() => setSaveStatus(""), 2000);
   };
 
+  const saveBacktests = async (data) => {
+    const prev = backtests;
+    setBacktests(data);
+    setSaveStatus("Saving...");
+    try {
+      const deleted = prev.filter(b => !data.find(d => d.id === b.id));
+      await Promise.all(deleted.map(b => dbDelete("backtests", b.id)));
+      if (data.length) await dbUpsert("backtests", data.map(b => ({id:b.id, date:b.date||null, pair:b.pair||null, type:b.type||null, pattern_id:b.patternId||null, timeframe:b.timeframe||null, result:b.result||"win", pnl:b.pnl||0, session:b.session||null, notes:b.notes||null, reason:b.reason||null})));
+      setSaveStatus("✓ Saved");
+    } catch { setSaveStatus("⚠ Save error"); }
+    setTimeout(() => setSaveStatus(""), 2000);
+  };
+
   const close = () => setModal(null);
 
   const stats = useMemo(() => {
     const wins = trades.filter(t => t.result === "win");
     const losses = trades.filter(t => t.result === "loss");
+    const breakevens = trades.filter(t => t.result === "breakeven");
+    const closed = trades.filter(t => t.result !== "pending");
     const totalPnl = trades.reduce((a, t) => a + (t.pnl || 0), 0);
     const avgWin = wins.length ? wins.reduce((a, t) => a + t.pnl, 0) / wins.length : 0;
     const avgLoss = losses.length ? Math.abs(losses.reduce((a, t) => a + t.pnl, 0) / losses.length) : 0;
     const rr = avgLoss ? (avgWin / avgLoss).toFixed(2) : "—";
-    return { totalPnl, wins: wins.length, losses: losses.length, winrate: pct(wins.length, wins.length + losses.length), rr, avgWin, avgLoss, total: trades.length };
+    return { totalPnl, wins: wins.length, losses: losses.length, breakevens: breakevens.length, closed: closed.length, winrate: pct(wins.length, wins.length + losses.length), rr, avgWin, avgLoss, total: trades.length };
   }, [trades]);
 
   const acctName = id => (accounts.find(a => a.id === id) || {}).name || "—";
@@ -221,6 +238,8 @@ export default function App() {
     { id: "trades", icon: "⟳", label: "Trades" },
     { id: "patterns", icon: "◈", label: "Patterns" },
     { id: "pairs", icon: "◎", label: "Pairs" },
+    { id: "charts", icon: "▲", label: "Charts" },
+    { id: "backtest", icon: "◐", label: "Backtesting" },
     { id: "compass", icon: "⊕", label: "AI Compass" },
     { id: "accounts", icon: "▣", label: "Accounts" },
   ];
@@ -256,13 +275,14 @@ export default function App() {
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 26px", borderBottom: `1px solid ${C.border}`, background: C.panel, flexShrink: 0 }}>
           <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 20, letterSpacing: 3 }}>
-            {{ dashboard: "DASHBOARD", trades: "TRADE LOG", patterns: "PATTERNS", pairs: "MY PAIRS", compass: "AI COMPASS", accounts: "ACCOUNTS" }[tab]}
+            {{ dashboard: "DASHBOARD", trades: "TRADE LOG", patterns: "PATTERNS", pairs: "MY PAIRS", charts: "CHARTS", backtest: "BACKTESTING", compass: "AI COMPASS", accounts: "ACCOUNTS" }[tab]}
           </div>
           <div style={{ display: "flex", gap: 10 }}>
             {tab === "accounts" && <Btn onClick={() => setModal({ type: "account" })}>+ Account</Btn>}
             {tab === "trades" && <Btn onClick={() => setModal({ type: "trade" })}>+ Trade</Btn>}
             {tab === "patterns" && <Btn onClick={() => setModal({ type: "pattern" })}>+ Pattern</Btn>}
             {tab === "pairs" && <Btn onClick={() => setModal({ type: "pair" })}>+ Pair</Btn>}
+            {tab === "backtest" && <Btn onClick={() => setModal({ type: "backtest" })}>+ Backtest Trade</Btn>}
             {tab === "dashboard" && <>
               <Btn ghost onClick={() => setModal({ type: "pattern" })} color={C.accent}>+ Pattern</Btn>
               <Btn onClick={() => setModal({ type: "trade" })}>+ Trade</Btn>
@@ -276,6 +296,8 @@ export default function App() {
           {tab === "patterns" && <PatternLog patterns={patterns} trades={trades} onView={id => setModal({ type: "view-pattern", id })} />}
           {tab === "compass" && <Compass trades={trades} stats={stats} patName={patName} aiResult={aiResult} setAiResult={setAiResult} aiLoading={aiLoading} setAiLoading={setAiLoading} />}
           {tab === "pairs" && <PairsLog pairs={pairs} onEdit={id => setModal({ type: "pair", id })} />}
+          {tab === "charts" && <Charts trades={trades} accounts={accounts} acctName={acctName} />}
+          {tab === "backtest" && <BacktestLog backtests={backtests} trades={trades} patterns={patterns} patName={patName} pairs={pairs} onView={id => setModal({ type: "view-backtest", id })} />}
           {tab === "accounts" && <AccountLog accounts={accounts} trades={trades} onEdit={id => setModal({ type: "account", id })} />}
         </div>
       </div>
@@ -315,6 +337,18 @@ export default function App() {
           onDelete={id => { savePatterns(patterns.filter(p => p.id !== id)); close(); }}
         />
       )}
+      {modal?.type === "backtest" && (
+        <BacktestModal
+          backtest={modal.id ? backtests.find(b => b.id === modal.id) : null}
+          patterns={patterns} pairs={pairs} onClose={close}
+          onSave={b => { saveBacktests(modal.id ? backtests.map(x => x.id === modal.id ? b : x) : [...backtests, b]); close(); }}
+          onDelete={id => { saveBacktests(backtests.filter(b => b.id !== id)); close(); }}
+        />
+      )}
+      {modal?.type === "view-backtest" && (
+        <BacktestViewModal backtest={backtests.find(b => b.id === modal.id)} patName={patName} trades={trades} patterns={patterns}
+          onClose={close} onEdit={() => setModal({ type: "backtest", id: modal.id })} />
+      )}
       {modal?.type === "pair" && (
         <PairModal
           pair={modal.id ? pairs.find(p => p.id === modal.id) : null}
@@ -350,12 +384,13 @@ function Dashboard({ trades, stats, patterns, acctName, patName, onViewTrade }) 
 
   return (
     <div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", gap: 10, marginBottom: 22 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 10, marginBottom: 22 }}>
         {[
           { label: "TOTAL P&L", val: fmt(stats.totalPnl), color: stats.totalPnl >= 0 ? C.green : C.red },
           { label: "TRADES", val: stats.total },
           { label: "WINNERS", val: stats.wins, color: C.green },
           { label: "LOSERS", val: stats.losses, color: C.red },
+          { label: "BREAKEVEN", val: stats.breakevens, color: C.muted },
           { label: "WIN RATE", val: stats.winrate },
           { label: "R:R", val: stats.rr !== "—" ? stats.rr + ":1" : "—" },
         ].map(s => (
@@ -477,7 +512,7 @@ STATS: ${JSON.stringify({ total: trades.length, wins: stats.wins, losses: stats.
 TRADES: ${JSON.stringify(trades.map(t => ({ date: t.date, day: t.day, time: t.time, pair: t.pair, type: t.type, pattern: patName(t.patternId), session: t.session, emotion: t.emotion || "—", result: t.result, pnl: t.pnl, riskPct: t.riskPct, notes: t.notes || "" })))}
 JSON: {"overallAssessment":"...","oneThingToFocusOn":"...","strengths":["..."],"weaknesses":["..."],"psychologyInsights":"...","bestDayTime":"...","bestPair":"...","actionPlan":["...","...","...","..."]}`;
     try {
-      const res = await fetch("/.netlify/functions/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 1000, messages: [{ role: "user", content: prompt }] }) });
+      const res = await fetch("/.netlify/functions/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, messages: [{ role: "user", content: prompt }] }) });
       const data = await res.json();
       const text = (data.content || []).map(b => b.text || "").join("");
       setAiResult(JSON.parse(text.replace(/```json|```/g, "").trim()));
@@ -726,7 +761,7 @@ PATTERN RULES: ${JSON.stringify(patRules)}
 HISTORY: ${JSON.stringify(history)}
 JSON: {"message":"2-3 sentences of direct coaching based on this result and their history","emoji":"one relevant emoji","tone":"positive|warning|neutral"}`;
       try {
-        const res = await fetch("/.netlify/functions/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 200, messages: [{ role: "user", content: prompt }] }) });
+        const res = await fetch("/.netlify/functions/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 200, messages: [{ role: "user", content: prompt }] }) });
         const data = await res.json();
         const text = (data.content || []).map(b => b.text || "").join("");
         setMiniCoach(JSON.parse(text.replace(/```json|```/g, "").trim()));
@@ -939,7 +974,7 @@ JSON format:
     try {
       const res = await fetch("/.netlify/functions/claude", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 800, messages: [{ role: "user", content: prompt }] })
+        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 800, messages: [{ role: "user", content: prompt }] })
       });
       const data = await res.json();
       const text = (data.content || []).map(b => b.text || "").join("");
@@ -1063,6 +1098,330 @@ JSON format:
       </div>
 
       <Btn onClick={onEdit} ghost color={C.accent} full>Edit Trade</Btn>
+    </Modal>
+  );
+}
+
+function Charts({ trades, accounts, acctName }) {
+  const closed = trades.filter(t => t.result !== "pending");
+  
+  // P&L cumulative over time
+  const sortedTrades = [...closed].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  let running = 0;
+  const pnlData = sortedTrades.map(t => { running += t.pnl || 0; return { date: t.date, pnl: running, trade: t.pair }; });
+
+  // Win/Loss/Breakeven breakdown
+  const wins = trades.filter(t => t.result === "win").length;
+  const losses = trades.filter(t => t.result === "loss").length;
+  const bes = trades.filter(t => t.result === "breakeven").length;
+  const total = wins + losses + bes;
+
+  // By pair
+  const pairMap = {};
+  closed.forEach(t => { if (!t.pair) return; if (!pairMap[t.pair]) pairMap[t.pair] = { pnl: 0, count: 0 }; pairMap[t.pair].pnl += t.pnl || 0; pairMap[t.pair].count++; });
+  const topPairs = Object.entries(pairMap).sort((a, b) => Math.abs(b[1].pnl) - Math.abs(a[1].pnl)).slice(0, 6);
+
+  // By session
+  const sessionMap = {};
+  closed.forEach(t => { if (!t.session) return; if (!sessionMap[t.session]) sessionMap[t.session] = { pnl: 0, wins: 0, total: 0 }; sessionMap[t.session].pnl += t.pnl || 0; sessionMap[t.session].total++; if (t.result === "win") sessionMap[t.session].wins++; });
+
+  // By day
+  const dayMap = {};
+  closed.forEach(t => { if (!t.day) return; if (!dayMap[t.day]) dayMap[t.day] = { pnl: 0, wins: 0, total: 0 }; dayMap[t.day].pnl += t.pnl || 0; dayMap[t.day].total++; if (t.result === "win") dayMap[t.day].wins++; });
+
+  // By account
+  const acctMap = {};
+  trades.forEach(t => { if (!t.accountId) return; if (!acctMap[t.accountId]) acctMap[t.accountId] = { pnl: 0, count: 0 }; acctMap[t.accountId].pnl += t.pnl || 0; acctMap[t.accountId].count++; });
+
+  const Bar = ({ label, value, max, color, sub }) => {
+    const w = max ? Math.abs(value / max) * 100 : 0;
+    return (
+      <div style={{ marginBottom: 10 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 4 }}>
+          <span style={{ color: C.text }}>{label}</span>
+          <span style={{ color: value >= 0 ? C.green : C.red, fontWeight: 700 }}>{fmt(value)}{sub && <span style={{ color: C.dim, fontWeight: 400 }}> · {sub}</span>}</span>
+        </div>
+        <div style={{ background: C.border, borderRadius: 3, height: 6, overflow: "hidden" }}>
+          <div style={{ width: `${Math.min(w, 100)}%`, height: "100%", background: value >= 0 ? C.green : C.red, borderRadius: 3 }} />
+        </div>
+      </div>
+    );
+  };
+
+  if (!closed.length) return <Empty text="Log some trades to see your charts!" />;
+
+  // Simple SVG line chart for cumulative P&L
+  const chartW = 600, chartH = 160;
+  const maxPnl = Math.max(...pnlData.map(d => d.pnl), 0);
+  const minPnl = Math.min(...pnlData.map(d => d.pnl), 0);
+  const range = maxPnl - minPnl || 1;
+  const points = pnlData.map((d, i) => {
+    const x = pnlData.length === 1 ? chartW / 2 : (i / (pnlData.length - 1)) * chartW;
+    const y = chartH - ((d.pnl - minPnl) / range) * chartH;
+    return `${x},${y}`;
+  }).join(" ");
+  const lastPnl = pnlData[pnlData.length - 1]?.pnl || 0;
+
+  return (
+    <div>
+      {/* Cumulative P&L Chart */}
+      <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18, marginBottom: 16 }}>
+        <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3, marginBottom: 14 }}>📈 CUMULATIVE P&L</div>
+        <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 28, color: lastPnl >= 0 ? C.green : C.red, marginBottom: 12 }}>{fmt(lastPnl)}</div>
+        <svg viewBox={`0 0 ${chartW} ${chartH}`} style={{ width: "100%", height: 120 }}>
+          <defs>
+            <linearGradient id="pnlGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={lastPnl >= 0 ? C.green : C.red} stopOpacity="0.3"/>
+              <stop offset="100%" stopColor={lastPnl >= 0 ? C.green : C.red} stopOpacity="0"/>
+            </linearGradient>
+          </defs>
+          {minPnl < 0 && maxPnl > 0 && (
+            <line x1="0" y1={chartH - ((0 - minPnl) / range) * chartH} x2={chartW} y2={chartH - ((0 - minPnl) / range) * chartH} stroke={C.border} strokeWidth="1" strokeDasharray="4,4"/>
+          )}
+          {pnlData.length > 1 && (
+            <polyline points={points} fill="none" stroke={lastPnl >= 0 ? C.green : C.red} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+          )}
+        </svg>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: C.dim, marginTop: 4 }}>
+          <span>{pnlData[0]?.date || ""}</span>
+          <span>{pnlData[pnlData.length-1]?.date || ""}</span>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+        {/* Win/Loss/BE Donut */}
+        <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18 }}>
+          <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3, marginBottom: 14 }}>🎯 RESULTS BREAKDOWN</div>
+          <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 14 }}>
+            {[[wins, C.green, "WIN"], [losses, C.red, "LOSS"], [bes, C.muted, "BE"]].map(([n, c, l]) => (
+              <div key={l} style={{ flex: 1, textAlign: "center", background: C.bg, borderRadius: 8, padding: "12px 6px", border: `1px solid ${c}33` }}>
+                <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 26, color: c }}>{n}</div>
+                <div style={{ fontSize: 9, color: c, letterSpacing: 2 }}>{l}</div>
+                <div style={{ fontSize: 10, color: C.dim }}>{total ? Math.round(n/total*100) : 0}%</div>
+              </div>
+            ))}
+          </div>
+          {/* Bar */}
+          <div style={{ height: 8, borderRadius: 4, overflow: "hidden", display: "flex" }}>
+            {total > 0 && <>
+              <div style={{ width: `${wins/total*100}%`, background: C.green }} />
+              <div style={{ width: `${losses/total*100}%`, background: C.red }} />
+              <div style={{ width: `${bes/total*100}%`, background: C.muted }} />
+            </>}
+          </div>
+        </div>
+
+        {/* By Account */}
+        <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18 }}>
+          <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3, marginBottom: 14 }}>💼 BY ACCOUNT</div>
+          {Object.entries(acctMap).map(([id, d]) => (
+            <Bar key={id} label={acctName(id)} value={d.pnl} max={Math.max(...Object.values(acctMap).map(x => Math.abs(x.pnl)))} sub={`${d.count} trades`} />
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+        {/* By Pair */}
+        <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18 }}>
+          <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3, marginBottom: 14 }}>💱 P&L BY PAIR</div>
+          {topPairs.map(([pair, d]) => (
+            <Bar key={pair} label={pair} value={d.pnl} max={Math.max(...topPairs.map(x => Math.abs(x[1].pnl)))} sub={`${d.count} trades`} />
+          ))}
+        </div>
+
+        {/* By Session */}
+        <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18 }}>
+          <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3, marginBottom: 14 }}>🕐 P&L BY SESSION</div>
+          {Object.entries(sessionMap).sort((a,b) => b[1].pnl - a[1].pnl).map(([session, d]) => (
+            <Bar key={session} label={session} value={d.pnl} max={Math.max(...Object.values(sessionMap).map(x => Math.abs(x.pnl)))} sub={`${d.wins}/${d.total} wins`} />
+          ))}
+        </div>
+      </div>
+
+      {/* By Day */}
+      <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18 }}>
+        <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3, marginBottom: 14 }}>📅 P&L BY DAY OF WEEK</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 10 }}>
+          {["Monday","Tuesday","Wednesday","Thursday","Friday"].map(day => {
+            const d = dayMap[day] || { pnl: 0, wins: 0, total: 0 };
+            return (
+              <div key={day} style={{ background: C.bg, borderRadius: 8, padding: "12px 10px", textAlign: "center", border: `1px solid ${d.pnl > 0 ? C.green + "33" : d.pnl < 0 ? C.red + "33" : C.border}` }}>
+                <div style={{ fontSize: 9, color: C.dim, letterSpacing: 1, marginBottom: 6 }}>{day.slice(0,3).toUpperCase()}</div>
+                <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 16, color: d.pnl >= 0 ? C.green : C.red }}>{fmt(d.pnl)}</div>
+                <div style={{ fontSize: 10, color: C.dim, marginTop: 3 }}>{d.total} trades</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BacktestLog({ backtests, trades, patterns, patName, pairs, onView }) {
+  if (!backtests.length) return (
+    <div>
+      <Empty text="No backtests yet. Add trades you analyzed but didn't take!" />
+      <div style={{ textAlign: "center", marginTop: 12, fontSize: 11, color: C.dim, lineHeight: 1.8, maxWidth: 400, margin: "12px auto 0" }}>
+        Record setups you identified but didn't trade. The AI will compare them with your real trades to find patterns.
+      </div>
+    </div>
+  );
+
+  const wins = backtests.filter(b => b.result === "win").length;
+  const losses = backtests.filter(b => b.result === "loss").length;
+  const totalPnl = backtests.reduce((a, b) => a + (b.pnl || 0), 0);
+  const realPnl = trades.reduce((a, t) => a + (t.pnl || 0), 0);
+
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 20 }}>
+        {[
+          { label: "BACKTEST P&L", val: fmt(totalPnl), color: totalPnl >= 0 ? C.green : C.red },
+          { label: "REAL P&L", val: fmt(realPnl), color: realPnl >= 0 ? C.green : C.red },
+          { label: "BT WIN RATE", val: backtests.length ? Math.round(wins/backtests.length*100)+"%" : "—" },
+          { label: "MISSED TRADES", val: backtests.length },
+        ].map(s => (
+          <div key={s.label} style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "13px 14px" }}>
+            <div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, marginBottom: 8 }}>{s.label}</div>
+            <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 20, color: s.color || C.text }}>{s.val}</div>
+          </div>
+        ))}
+      </div>
+      <div>{[...backtests].reverse().map(b => {
+        const meta = { win: { c: C.green, i: "▲" }, loss: { c: C.red, i: "▼" }, breakeven: { c: C.muted, i: "─" } };
+        const r = meta[b.result] || meta.win;
+        return (
+          <div key={b.id} onClick={() => onView(b.id)} style={{ display: "flex", alignItems: "center", gap: 10, background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "11px 14px", marginBottom: 6, cursor: "pointer", opacity: 0.85 }}>
+            <div style={{ fontSize: 18, color: r.c, width: 20, textAlign: "center", flexShrink: 0 }}>{r.i}</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
+                {b.pair}
+                <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 3, background: `${C.gold}22`, color: C.gold, border: `1px solid ${C.gold}44` }}>BACKTEST</span>
+                {b.patternId && <Tag>{patName(b.patternId)}</Tag>}
+              </div>
+              <div style={{ fontSize: 10, color: C.dim, marginTop: 3 }}>{[b.date, b.session, b.timeframe].filter(Boolean).join(" · ")}</div>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 16, color: (b.pnl || 0) >= 0 ? C.green : C.red }}>{fmt(b.pnl)}</div>
+            </div>
+          </div>
+        );
+      })}</div>
+    </div>
+  );
+}
+
+function BacktestModal({ backtest, patterns, pairs, onClose, onSave, onDelete }) {
+  const b = backtest || {};
+  const [date, setDate] = useState(b.date || new Date().toISOString().slice(0, 10));
+  const [pair, setPair] = useState(b.pair || "");
+  const [type, setType] = useState(b.type || "buy");
+  const [patternId, setPatternId] = useState(b.patternId || "");
+  const [timeframe, setTimeframe] = useState(b.timeframe || "");
+  const [session, setSession] = useState(b.session || "");
+  const [result, setResult] = useState(b.result || "win");
+  const [pnl, setPnl] = useState(b.pnl ?? "");
+  const [notes, setNotes] = useState(b.notes || "");
+  const [reason, setReason] = useState(b.reason || "");
+  const save = () => { if (!pair) return; onSave({ id: b.id || uid(), date, pair, type, patternId, timeframe, session, result, pnl: parseFloat(pnl)||0, notes, reason }); };
+  return (
+    <Modal title={b.id ? "EDIT BACKTEST" : "NEW BACKTEST TRADE"} onClose={onClose}>
+      <div style={{ background: `${C.gold}0a`, border: `1px solid ${C.gold}33`, borderRadius: 6, padding: "10px 14px", marginBottom: 14, fontSize: 11, color: C.gold }}>
+        📊 Record a setup you saw but didn't trade, or a trade you're analyzing in historical data.
+      </div>
+      <Inp label="DATE" value={date} onChange={setDate} type="date" />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div style={{ marginBottom: 13 }}>
+          <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>PAIR</div>
+          <select value={pair} onChange={e => setPair(e.target.value)} style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "IBM Plex Mono, monospace" }}>
+            <option value="">Select pair...</option>
+            {pairs.length > 0 ? pairs.map(p => <option key={p.id} value={p.symbol}>{p.symbol}</option>) : PAIRS.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+        </div>
+        <Sel label="TYPE" value={type} onChange={setType} options={[{ value: "buy", label: "BUY (Long)" }, { value: "sell", label: "SELL (Short)" }]} placeholder="" />
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <Sel label="PATTERN" value={patternId} onChange={setPatternId} options={patterns.map(p => ({ value: p.id, label: p.name }))} placeholder="— No pattern —" />
+        <Sel label="TIMEFRAME" value={timeframe} onChange={setTimeframe} options={TIMEFRAMES} />
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+        <Sel label="SESSION" value={session} onChange={setSession} options={SESSIONS} />
+        <Sel label="HYPOTHETICAL RESULT" value={result} onChange={setResult} options={["win","loss","breakeven"]} placeholder="" />
+        <Inp label="HYPOTHETICAL P&L" value={pnl} onChange={setPnl} type="number" placeholder="±0.00" />
+      </div>
+      <div style={{ marginBottom: 13 }}>
+        <div style={{ fontSize: 9, color: C.gold, letterSpacing: 2, marginBottom: 5 }}>WHY DIDN'T YOU TAKE IT? (or what did you learn?)</div>
+        <textarea value={reason} onChange={e => setReason(e.target.value)} placeholder={"Was too late to enter?
+Didn't trust the setup?
+Missed the entry?
+What would you do differently?"} rows={3} style={{ width: "100%", background: C.bg, border: `1px solid ${C.gold}44`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "IBM Plex Mono, monospace", resize: "vertical" }} />
+      </div>
+      <div style={{ marginBottom: 13 }}>
+        <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>ANALYSIS NOTES</div>
+        <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="What did you observe? What worked in theory?" rows={3} style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "IBM Plex Mono, monospace", resize: "vertical" }} />
+      </div>
+      <div style={{ display: "flex", gap: 10 }}><Btn onClick={save} full>Save Backtest</Btn>{b.id && <Btn danger onClick={() => { if (confirm("Delete?")) onDelete(b.id); }}>Delete</Btn>}</div>
+    </Modal>
+  );
+}
+
+function BacktestViewModal({ backtest, patName, trades, patterns, onClose, onEdit }) {
+  if (!backtest) return null;
+  const [aiAnalysis, setAiAnalysis] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const meta = { win: { c: C.green, i: "▲" }, loss: { c: C.red, i: "▼" }, breakeven: { c: C.muted, i: "─" } };
+  const r = meta[backtest.result] || meta.win;
+
+  const getAI = async () => {
+    setAiLoading(true); setAiAnalysis(null);
+    const realTrades = trades.slice(-20).map(t => ({ pair: t.pair, result: t.result, pnl: t.pnl, pattern: patName(t.patternId), emotion: t.emotion, session: t.session }));
+    const patRules = patterns.map(p => ({ name: p.name, rules: p.rules }));
+    const prompt = `You are a forex trading coach analyzing a backtest/missed trade vs real trading history. Respond ONLY with valid JSON:
+BACKTEST: ${JSON.stringify({ pair: backtest.pair, type: backtest.type, pattern: patName(backtest.patternId), result: backtest.result, pnl: backtest.pnl, session: backtest.session, reason: backtest.reason || "not specified", notes: backtest.notes || "none" })}
+PATTERN RULES: ${JSON.stringify(patRules)}
+REAL TRADES HISTORY: ${JSON.stringify(realTrades)}
+JSON: {"setupQuality":"rate the setup quality 1-10 and explain","comparedToReal":"how does this compare to their real traded setups?","missedOpportunity":"was this a good setup they should have taken?","patternConsistency":"is this consistent with their winning patterns?","keyLesson":"the most important lesson from this analysis","recommendation":"should they focus on taking more setups like this?"}`;
+    try {
+      const res = await fetch("/.netlify/functions/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 600, messages: [{ role: "user", content: prompt }] }) });
+      const data = await res.json();
+      const text = (data.content || []).map(b => b.text || "").join("");
+      setAiAnalysis(JSON.parse(text.replace(/```json|```/g, "").trim()));
+    } catch { setAiAnalysis({ error: true }); }
+    setAiLoading(false);
+  };
+
+  return (
+    <Modal title={`[BT] ${backtest.pair} · ${(backtest.type || "").toUpperCase()}`} onClose={onClose}>
+      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18 }}>
+        <div style={{ fontSize: 32, color: r.c }}>{r.i}</div>
+        <div>
+          <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 22, letterSpacing: 2 }}>{backtest.pair}</div>
+          <div style={{ fontSize: 11, color: C.dim }}>{[backtest.date, backtest.session, backtest.timeframe].filter(Boolean).join(" · ")}</div>
+        </div>
+        <div style={{ marginLeft: "auto", textAlign: "right" }}>
+          <span style={{ fontSize: 10, padding: "3px 10px", background: `${C.gold}22`, color: C.gold, border: `1px solid ${C.gold}44`, borderRadius: 4 }}>BACKTEST</span>
+          <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 22, color: (backtest.pnl || 0) >= 0 ? C.green : C.red, marginTop: 4 }}>{fmt(backtest.pnl)}</div>
+        </div>
+      </div>
+      {backtest.reason && <div style={{ background: `${C.gold}08`, border: `1px solid ${C.gold}22`, borderRadius: 8, padding: "12px 14px", marginBottom: 10 }}><div style={{ fontSize: 9, color: C.gold, letterSpacing: 2, marginBottom: 5 }}>WHY NOT TAKEN / LESSON</div><div style={{ fontSize: 12, lineHeight: 1.7 }}>{backtest.reason}</div></div>}
+      {backtest.notes && <div style={{ background: C.bg, borderRadius: 8, padding: "12px 14px", marginBottom: 14 }}><div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, marginBottom: 5 }}>ANALYSIS NOTES</div><div style={{ fontSize: 12, lineHeight: 1.7 }}>{backtest.notes}</div></div>}
+      <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 14, marginBottom: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <div style={{ fontSize: 9, color: C.accent, letterSpacing: 3 }}>⊕ AI COMPARISON ANALYSIS</div>
+          <Btn onClick={getAI} disabled={aiLoading} small ghost color={C.accent}>{aiLoading ? "Analyzing..." : aiAnalysis ? "Refresh" : "Analyze vs Real Trades"}</Btn>
+        </div>
+        {aiLoading && <div style={{ display: "flex", alignItems: "center", gap: 10, padding: 14, background: C.bg, borderRadius: 8 }}><div style={{ width: 20, height: 20, border: `2px solid ${C.border}`, borderTopColor: C.accent, borderRadius: "50%", animation: "spin .8s linear infinite" }} /><div style={{ fontSize: 11, color: C.dim }}>Comparing with your real trades...</div></div>}
+        {aiAnalysis && !aiLoading && (aiAnalysis.error ? <div style={{ color: C.red, fontSize: 12, padding: 12 }}>Could not analyze. Try again.</div> : <div>
+          <div style={{ background: C.bg, borderRadius: 8, padding: "12px 14px", marginBottom: 8 }}><div style={{ fontSize: 9, color: C.gold, letterSpacing: 2, marginBottom: 5 }}>SETUP QUALITY</div><div style={{ fontSize: 12, lineHeight: 1.7 }}>{aiAnalysis.setupQuality}</div></div>
+          <div style={{ background: C.bg, borderRadius: 8, padding: "12px 14px", marginBottom: 8 }}><div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, marginBottom: 5 }}>VS YOUR REAL TRADES</div><div style={{ fontSize: 12, lineHeight: 1.7 }}>{aiAnalysis.comparedToReal}</div></div>
+          <div style={{ background: C.bg, borderRadius: 8, padding: "12px 14px", marginBottom: 8 }}><div style={{ fontSize: 9, color: C.green, letterSpacing: 2, marginBottom: 5 }}>MISSED OPPORTUNITY?</div><div style={{ fontSize: 12, lineHeight: 1.7 }}>{aiAnalysis.missedOpportunity}</div></div>
+          <div style={{ background: `${C.accent}08`, border: `1px solid ${C.accent}33`, borderRadius: 8, padding: "12px 14px", marginBottom: 8 }}><div style={{ fontSize: 9, color: C.accent, letterSpacing: 2, marginBottom: 5 }}>KEY LESSON</div><div style={{ fontSize: 13, fontWeight: 700, color: C.accent, lineHeight: 1.6 }}>{aiAnalysis.keyLesson}</div></div>
+          <div style={{ background: C.bg, borderRadius: 8, padding: "12px 14px" }}><div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, marginBottom: 5 }}>RECOMMENDATION</div><div style={{ fontSize: 12, lineHeight: 1.7 }}>{aiAnalysis.recommendation}</div></div>
+        </div>)}
+        {!aiAnalysis && !aiLoading && <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.7, padding: "10px 0" }}>Click "Analyze vs Real Trades" to compare this backtest with your actual trading performance.</div>}
+      </div>
+      <Btn onClick={onEdit} ghost color={C.accent} full>Edit Backtest</Btn>
     </Modal>
   );
 }
