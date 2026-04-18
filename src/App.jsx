@@ -1094,4 +1094,3 @@ function PatternViewModal({ pattern, trades, onClose, onEdit }) {
     </Modal>
   );
 }
-
