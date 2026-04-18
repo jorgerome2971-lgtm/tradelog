@@ -1352,10 +1352,7 @@ function BacktestModal({ backtest, patterns, pairs, onClose, onSave, onDelete })
       </div>
       <div style={{ marginBottom: 13 }}>
         <div style={{ fontSize: 9, color: C.gold, letterSpacing: 2, marginBottom: 5 }}>WHY DIDN'T YOU TAKE IT? (or what did you learn?)</div>
-        <textarea value={reason} onChange={e => setReason(e.target.value)} placeholder={"Was too late to enter?
-Didn't trust the setup?
-Missed the entry?
-What would you do differently?"} rows={3} style={{ width: "100%", background: C.bg, border: `1px solid ${C.gold}44`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "IBM Plex Mono, monospace", resize: "vertical" }} />
+        <textarea value={reason} onChange={e => setReason(e.target.value)} placeholder="Was too late to enter? Didn't trust the setup? Missed the entry? What would you do differently?" rows={3} style={{ width: "100%", background: C.bg, border: `1px solid ${C.gold}44`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "IBM Plex Mono, monospace", resize: "vertical" }} />
       </div>
       <div style={{ marginBottom: 13 }}>
         <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>ANALYSIS NOTES</div>
