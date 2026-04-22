@@ -16,6 +16,7 @@ const SESSIONS = ["London","New York","London/NY Overlap","Asia","Pre-market"];
 const TIMEFRAMES = ["1m","5m","15m","30m","1H","4H","D"];
 const EMOTIONS = ["Calm","Confident","Anxious","FOMO","Doubtful","Patient","Impulsive","Neutral"];
 const CURRENCIES = ["USD","EUR","GBP","MXN"];
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 const css = `
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&family=Bebas+Neue&display=swap');
@@ -103,6 +104,8 @@ export default function App() {
   const [patterns, setPatterns] = useState([]);
   const [pairs, setPairs] = useState([]);
   const [backtests, setBacktests] = useState([]);
+  const [withdrawals, setWithdrawals] = useState([]);
+  const [roundTables, setRoundTables] = useState(null);
   const [modal, setModal] = useState(null);
   const [aiResult, setAiResult] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
@@ -127,16 +130,23 @@ export default function App() {
   };
 
   // ── LOAD from Supabase ────────────────────────────────────────────────────
+  const DEFAULT_ROUND_TABLES = {
+    a: { name: "TABLE A", values: [500,800,500,500,500,500,500,500,500,500,500,500], results: Array(12).fill(null) },
+    b: { name: "TABLE B", values: [500,500,1000,1000,500,500,500,500,500,500,500,500], results: Array(12).fill(null) },
+    c: { name: "TABLE C", values: [500,1000,1500,2000,500,1500,1000,1000,500,500,2000,500], results: Array(12).fill(null) },
+  };
+
   useEffect(() => {
     const load = async () => {
       try {
-        const [a, t, p, pr, bt] = await Promise.all([dbGet("accounts"), dbGet("trades"), dbGet("patterns"), dbGet("pairs"), dbGet("backtests").catch(() => [])]);
-        if (Array.isArray(a)) setAccounts(a.map(r => ({id:r.id, name:r.name, broker:r.broker, size:r.size, currency:r.currency, maxDaily:r.max_daily, maxDrawdown:r.max_drawdown})));
+        const [a, t, p, pr, bt, wd] = await Promise.all([dbGet("accounts"), dbGet("trades"), dbGet("patterns"), dbGet("pairs"), dbGet("backtests").catch(() => []), dbGet("withdrawals").catch(() => [])]);
+        if (Array.isArray(a)) setAccounts(a.map(r => ({id:r.id, name:r.name, broker:r.broker, size:r.size, currency:r.currency, maxDaily:r.max_daily, maxDrawdown:r.max_drawdown, myPct:r.my_pct||"", firmPct:r.firm_pct||""})));
         if (Array.isArray(t)) setTrades(t.map(r => ({id:r.id, accountId:r.account_id, date:r.date, day:r.day, time:r.time, session:r.session, pair:r.pair, type:r.type, patternId:r.pattern_id, timeframe:r.timeframe, result:r.result, pnl:parseFloat(r.pnl)||0, riskPct:r.risk_pct, riskAmount:r.risk_amount, emotion:r.emotion, entryLink:r.entry_link, exitLink:r.exit_link, entryNotes:r.entry_notes, exitNotes:r.exit_notes, mistakes:r.mistakes})));
         if (Array.isArray(p)) setPatterns(p.map(r => ({id:r.id, name:r.name, timeframe:r.timeframe, session:r.session, pairs:r.pairs, description:r.description, rules:r.rules, confirmations:r.confirmations, imageLink:r.image_link})));
         if (Array.isArray(pr)) setPairs(pr.map(r => ({id:r.id, symbol:r.symbol, description:r.description||""})));
         if (Array.isArray(bt)) setBacktests(bt.map(r => ({id:r.id, date:r.date, pair:r.pair, type:r.type, patternId:r.pattern_id, timeframe:r.timeframe, result:r.result, pnl:parseFloat(r.pnl)||0, session:r.session, notes:r.notes||"", reason:r.reason||""})));
       } catch (e) { setSaveStatus("⚠ Connection error"); }
+      try { const saved = localStorage.getItem("tradelog:roundtables"); setRoundTables(saved ? JSON.parse(saved) : DEFAULT_ROUND_TABLES); } catch { setRoundTables(DEFAULT_ROUND_TABLES); }
       setLoading(false);
     };
     load();
@@ -208,6 +218,22 @@ export default function App() {
     setTimeout(() => setSaveStatus(""), 2000);
   };
 
+  const saveWithdrawals = async (data) => {
+    const prev = withdrawals; setWithdrawals(data); setSaveStatus("Saving...");
+    try {
+      const deleted = prev.filter(w => !data.find(d => d.id === w.id));
+      await Promise.all(deleted.map(w => dbDelete("withdrawals", w.id)));
+      if (data.length) await dbUpsert("withdrawals", data.map(w => ({id:w.id, account_id:w.accountId||null, date:w.date||null, amount:w.amount||0, my_pct:w.myPct||null, firm_pct:w.firmPct||null, notes:w.notes||null})));
+      setSaveStatus("✓ Saved");
+    } catch { setSaveStatus("⚠ Save error"); }
+    setTimeout(() => setSaveStatus(""), 2000);
+  };
+
+  const saveRoundTables = (data) => {
+    setRoundTables(data);
+    try { localStorage.setItem("tradelog:roundtables", JSON.stringify(data)); } catch {}
+  };
+
   const close = () => setModal(null);
 
   const stats = useMemo(() => {
@@ -216,11 +242,12 @@ export default function App() {
     const breakevens = trades.filter(t => t.result === "breakeven");
     const closed = trades.filter(t => t.result !== "pending");
     const totalPnl = trades.reduce((a, t) => a + (t.pnl || 0), 0);
+    const totalWithdrawals = withdrawals.reduce((a, w) => a + (w.amount || 0), 0);
     const avgWin = wins.length ? wins.reduce((a, t) => a + t.pnl, 0) / wins.length : 0;
     const avgLoss = losses.length ? Math.abs(losses.reduce((a, t) => a + t.pnl, 0) / losses.length) : 0;
     const rr = avgLoss ? (avgWin / avgLoss).toFixed(2) : "—";
-    return { totalPnl, wins: wins.length, losses: losses.length, breakevens: breakevens.length, closed: closed.length, winrate: pct(wins.length, wins.length + losses.length), rr, avgWin, avgLoss, total: trades.length };
-  }, [trades]);
+    return { totalPnl, totalWithdrawals, netPnl: totalPnl - totalWithdrawals, wins: wins.length, losses: losses.length, breakevens: breakevens.length, closed: closed.length, winrate: pct(wins.length, wins.length + losses.length), rr, avgWin, avgLoss, total: trades.length };
+  }, [trades, withdrawals]);
 
   const acctName = id => (accounts.find(a => a.id === id) || {}).name || "—";
   const patName = id => (patterns.find(p => p.id === id) || {}).name || "—";
@@ -240,8 +267,10 @@ export default function App() {
     { id: "pairs", icon: "◎", label: "Pairs" },
     { id: "charts", icon: "▲", label: "Charts" },
     { id: "backtest", icon: "◐", label: "Backtesting" },
+    { id: "rounds", icon: "🥊", label: "Fight Rounds" },
     { id: "compass", icon: "⊕", label: "AI Compass" },
     { id: "accounts", icon: "▣", label: "Accounts" },
+    { id: "withdrawals", icon: "💸", label: "Withdrawals" },
   ];
 
   return (
@@ -265,8 +294,9 @@ export default function App() {
 
         <div style={{ marginTop: "auto", padding: 16, borderTop: `1px solid ${C.border}` }}>
           <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3, marginBottom: 6 }}>TOTAL P&L</div>
-          <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 26, color: stats.totalPnl >= 0 ? C.green : C.red }}>{fmt(stats.totalPnl)}</div>
+          <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 26, color: stats.netPnl >= 0 ? C.green : C.red }}>{fmt(stats.netPnl)}</div>
           <div style={{ fontSize: 10, color: C.muted, marginTop: 4 }}>{stats.total} trades · {stats.winrate} WR</div>
+          {stats.totalWithdrawals > 0 && <div style={{ fontSize: 10, color: C.gold, marginTop: 3 }}>💸 {fmt(stats.totalWithdrawals)} withdrawn</div>}
           {saveStatus && <div style={{ fontSize: 10, color: C.accent, marginTop: 10, letterSpacing: 1 }}>{saveStatus}</div>}
         </div>
       </aside>
@@ -275,7 +305,7 @@ export default function App() {
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 26px", borderBottom: `1px solid ${C.border}`, background: C.panel, flexShrink: 0 }}>
           <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 20, letterSpacing: 3 }}>
-            {{ dashboard: "DASHBOARD", trades: "TRADE LOG", patterns: "PATTERNS", pairs: "MY PAIRS", charts: "CHARTS", backtest: "BACKTESTING", compass: "AI COMPASS", accounts: "ACCOUNTS" }[tab]}
+            {{ dashboard: "DASHBOARD", trades: "TRADE LOG", patterns: "PATTERNS", pairs: "MY PAIRS", charts: "CHARTS", backtest: "BACKTESTING", rounds: "FIGHT ROUNDS", compass: "AI COMPASS", accounts: "ACCOUNTS", withdrawals: "WITHDRAWALS" }[tab]}
           </div>
           <div style={{ display: "flex", gap: 10 }}>
             {tab === "accounts" && <Btn onClick={() => setModal({ type: "account" })}>+ Account</Btn>}
@@ -283,6 +313,7 @@ export default function App() {
             {tab === "patterns" && <Btn onClick={() => setModal({ type: "pattern" })}>+ Pattern</Btn>}
             {tab === "pairs" && <Btn onClick={() => setModal({ type: "pair" })}>+ Pair</Btn>}
             {tab === "backtest" && <Btn onClick={() => setModal({ type: "backtest" })}>+ Backtest Trade</Btn>}
+            {tab === "withdrawals" && <Btn onClick={() => setModal({ type: "withdrawal" })}>+ Withdrawal</Btn>}
             {tab === "dashboard" && <>
               <Btn ghost onClick={() => setModal({ type: "pattern" })} color={C.accent}>+ Pattern</Btn>
               <Btn onClick={() => setModal({ type: "trade" })}>+ Trade</Btn>
@@ -298,7 +329,9 @@ export default function App() {
           {tab === "pairs" && <PairsLog pairs={pairs} onEdit={id => setModal({ type: "pair", id })} />}
           {tab === "charts" && <Charts trades={trades} accounts={accounts} acctName={acctName} />}
           {tab === "backtest" && <BacktestLog backtests={backtests} trades={trades} patterns={patterns} patName={patName} pairs={pairs} onView={id => setModal({ type: "view-backtest", id })} />}
-          {tab === "accounts" && <AccountLog accounts={accounts} trades={trades} onEdit={id => setModal({ type: "account", id })} />}
+          {tab === "rounds" && roundTables && <FightRounds tables={roundTables} onSave={saveRoundTables} />}
+          {tab === "accounts" && <AccountLog accounts={accounts} trades={trades} withdrawals={withdrawals} onEdit={id => setModal({ type: "account", id })} />}
+          {tab === "withdrawals" && <WithdrawalLog withdrawals={withdrawals} accounts={accounts} acctName={acctName} trades={trades} onEdit={id => setModal({ type: "withdrawal", id })} />}
         </div>
       </div>
 
@@ -348,6 +381,11 @@ export default function App() {
       {modal?.type === "view-backtest" && (
         <BacktestViewModal backtest={backtests.find(b => b.id === modal.id)} patName={patName} trades={trades} patterns={patterns}
           onClose={close} onEdit={() => setModal({ type: "backtest", id: modal.id })} />
+      )}
+      {modal?.type === "withdrawal" && (
+        <WithdrawalModal withdrawal={modal.id ? withdrawals.find(w => w.id === modal.id) : null} accounts={accounts} onClose={close}
+          onSave={w => { saveWithdrawals(modal.id ? withdrawals.map(x => x.id === modal.id ? w : x) : [...withdrawals, w]); close(); }}
+          onDelete={id => { saveWithdrawals(withdrawals.filter(w => w.id !== id)); close(); }} />
       )}
       {modal?.type === "pair" && (
         <PairModal
@@ -512,7 +550,7 @@ STATS: ${JSON.stringify({ total: trades.length, wins: stats.wins, losses: stats.
 TRADES: ${JSON.stringify(trades.map(t => ({ date: t.date, day: t.day, time: t.time, pair: t.pair, type: t.type, pattern: patName(t.patternId), session: t.session, emotion: t.emotion || "—", result: t.result, pnl: t.pnl, riskPct: t.riskPct, notes: t.notes || "" })))}
 JSON: {"overallAssessment":"...","oneThingToFocusOn":"...","strengths":["..."],"weaknesses":["..."],"psychologyInsights":"...","bestDayTime":"...","bestPair":"...","actionPlan":["...","...","...","..."]}`;
     try {
-      const res = await fetch("/.netlify/functions/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 1000, messages: [{ role: "user", content: prompt }] }) });
+      const res = await fetch("/.netlify/functions/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, messages: [{ role: "user", content: prompt }] }) });
       const data = await res.json();
       const text = (data.content || []).map(b => b.text || "").join("");
       setAiResult(JSON.parse(text.replace(/```json|```/g, "").trim()));
@@ -649,21 +687,23 @@ function PairModal({ pair, onClose, onSave, onDelete }) {
   );
 }
 
-function AccountLog({ accounts, trades, onEdit }) {
+function AccountLog({ accounts, trades, withdrawals, onEdit }) {
   if (!accounts.length) return <Empty text="No accounts yet. Add your first funded account!" />;
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))", gap: 14 }}>
       {accounts.map(acc => {
         const at = trades.filter(t => t.accountId === acc.id);
         const apnl = at.reduce((a, t) => a + (t.pnl || 0), 0);
+        const withdrawn = withdrawals ? withdrawals.filter(w => w.accountId === acc.id).reduce((a, w) => a + (w.amount||0), 0) : 0;
         return (
           <div key={acc.id} onClick={() => onEdit(acc.id)} style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18, cursor: "pointer" }}>
             <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 18, letterSpacing: 2, marginBottom: 3 }}>{acc.name}</div>
             <div style={{ fontSize: 10, color: C.dim, marginBottom: 12 }}>{acc.broker}{acc.size ? ` · $${Number(acc.size).toLocaleString()}` : ""}</div>
-            <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 24, color: apnl >= 0 ? C.green : C.red, marginBottom: 10 }}>{fmt(apnl)}</div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: C.muted }}>
-              <span>{at.length} trades</span><span>{acc.currency || "USD"}</span>
-            </div>
+            <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 24, color: apnl >= 0 ? C.green : C.red, marginBottom: 4 }}>{fmt(apnl)}</div>
+            {withdrawn > 0 && <div style={{ fontSize: 11, color: C.gold, marginBottom: 4 }}>💸 {fmt(withdrawn)} withdrawn</div>}
+            {withdrawn > 0 && <div style={{ fontSize: 11, color: (apnl - withdrawn) >= 0 ? C.green : C.red, marginBottom: 8 }}>Net: {fmt(apnl - withdrawn)}</div>}
+            {(acc.myPct || acc.firmPct) && <div style={{ fontSize: 10, color: C.dim, marginBottom: 8 }}>My cut: {acc.myPct}% · Firm: {acc.firmPct}%</div>}
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: C.muted }}><span>{at.length} trades</span><span>{acc.currency || "USD"}</span></div>
             <div style={{ fontSize: 9, color: C.muted, marginTop: 8, letterSpacing: 1 }}>✎ click to edit</div>
           </div>
         );
@@ -680,7 +720,9 @@ function AccountModal({ account, onClose, onSave, onDelete }) {
   const [currency, setCurrency] = useState(a.currency || "USD");
   const [maxDaily, setMaxDaily] = useState(a.maxDaily || "");
   const [maxDrawdown, setMaxDrawdown] = useState(a.maxDrawdown || "");
-  const save = () => { if (!name.trim()) return alert("Account name required"); onSave({ id: a.id || uid(), name, broker, size, currency, maxDaily, maxDrawdown }); };
+  const [myPct, setMyPct] = useState(a.myPct || "");
+  const [firmPct, setFirmPct] = useState(a.firmPct || "");
+  const save = () => { if (!name.trim()) return alert("Account name required"); onSave({ id: a.id || uid(), name, broker, size, currency, maxDaily, maxDrawdown, myPct, firmPct }); };
   return (
     <Modal title={a.id ? "EDIT ACCOUNT" : "NEW ACCOUNT"} onClose={onClose}>
       <Inp label="ACCOUNT NAME" value={name} onChange={setName} placeholder="e.g. FTMO $10K Challenge" />
@@ -693,6 +735,13 @@ function AccountModal({ account, onClose, onSave, onDelete }) {
         <Inp label="MAX DAILY LOSS %" value={maxDaily} onChange={setMaxDaily} type="number" placeholder="5" />
       </div>
       <Inp label="MAX DRAWDOWN %" value={maxDrawdown} onChange={setMaxDrawdown} type="number" placeholder="10" />
+      <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 14, marginTop: 4, marginBottom: 13 }}>
+        <div style={{ fontSize: 9, color: C.gold, letterSpacing: 2, marginBottom: 10 }}>💸 WITHDRAWAL SPLIT (default for this account)</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <Inp label="MY PERCENTAGE %" value={myPct} onChange={setMyPct} type="number" placeholder="80" />
+          <Inp label="FIRM PERCENTAGE %" value={firmPct} onChange={setFirmPct} type="number" placeholder="20" />
+        </div>
+      </div>
       <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
         <Btn onClick={save} full>Save Account</Btn>
         {a.id && <Btn danger onClick={() => { if (confirm("Delete this account?")) onDelete(a.id); }}>Delete</Btn>}
@@ -761,7 +810,7 @@ PATTERN RULES: ${JSON.stringify(patRules)}
 HISTORY: ${JSON.stringify(history)}
 JSON: {"message":"2-3 sentences of direct coaching based on this result and their history","emoji":"one relevant emoji","tone":"positive|warning|neutral"}`;
       try {
-        const res = await fetch("/.netlify/functions/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 200, messages: [{ role: "user", content: prompt }] }) });
+        const res = await fetch("/.netlify/functions/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 200, messages: [{ role: "user", content: prompt }] }) });
         const data = await res.json();
         const text = (data.content || []).map(b => b.text || "").join("");
         setMiniCoach(JSON.parse(text.replace(/```json|```/g, "").trim()));
@@ -974,7 +1023,7 @@ JSON format:
     try {
       const res = await fetch("/.netlify/functions/claude", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 800, messages: [{ role: "user", content: prompt }] })
+        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 800, messages: [{ role: "user", content: prompt }] })
       });
       const data = await res.json();
       const text = (data.content || []).map(b => b.text || "").join("");
@@ -1102,8 +1151,199 @@ JSON format:
   );
 }
 
+function WithdrawalLog({ withdrawals, accounts, acctName, trades, onEdit }) {
+  const totalWithdrawn = withdrawals.reduce((a, w) => a + (w.amount || 0), 0);
+  const grossPnl = trades.reduce((a, t) => a + (t.pnl || 0), 0);
+  const acctWd = {};
+  withdrawals.forEach(w => { if (!acctWd[w.accountId]) acctWd[w.accountId] = 0; acctWd[w.accountId] += w.amount || 0; });
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 22 }}>
+        {[{ label: "GROSS P&L", val: fmt(grossPnl), color: grossPnl >= 0 ? C.green : C.red }, { label: "TOTAL WITHDRAWN", val: fmt(totalWithdrawn), color: C.gold }, { label: "NET REMAINING", val: fmt(grossPnl - totalWithdrawn), color: (grossPnl - totalWithdrawn) >= 0 ? C.green : C.red }].map(s => (
+          <div key={s.label} style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "13px 14px" }}>
+            <div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, marginBottom: 8 }}>{s.label}</div>
+            <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 22, color: s.color }}>{s.val}</div>
+          </div>
+        ))}
+      </div>
+      {Object.keys(acctWd).length > 0 && (
+        <div style={{ marginBottom: 22 }}>
+          <SLabel>BY ACCOUNT</SLabel>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 10 }}>
+            {Object.entries(acctWd).map(([id, amt]) => {
+              const acctPnl = trades.filter(t => t.accountId === id).reduce((a, t) => a + (t.pnl||0), 0);
+              const acct = accounts.find(a => a.id === id) || {};
+              return (
+                <div key={id} style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "14px" }}>
+                  <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 16, marginBottom: 4 }}>{acctName(id)}</div>
+                  {acct.myPct && <div style={{ fontSize: 10, color: C.dim, marginBottom: 4 }}>My cut: {acct.myPct}% · Firm: {acct.firmPct}%</div>}
+                  <div style={{ fontSize: 11, color: C.gold }}>Withdrawn: {fmt(amt)}</div>
+                  <div style={{ fontSize: 11, color: C.green }}>Gross P&L: {fmt(acctPnl)}</div>
+                  <div style={{ fontSize: 11, color: (acctPnl - amt) >= 0 ? C.green : C.red }}>Net: {fmt(acctPnl - amt)}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      <SLabel>WITHDRAWAL HISTORY</SLabel>
+      {!withdrawals.length ? <Empty text="No withdrawals yet. Add your first one!" /> :
+        [...withdrawals].reverse().map(w => (
+          <div key={w.id} onClick={() => onEdit(w.id)} style={{ display: "flex", alignItems: "center", gap: 12, background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "12px 14px", marginBottom: 6, cursor: "pointer" }}>
+            <div style={{ fontSize: 20, color: C.gold }}>💸</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: 13 }}>{acctName(w.accountId)}</div>
+              <div style={{ fontSize: 10, color: C.dim, marginTop: 2 }}>{w.date}{w.notes ? ` · ${w.notes}` : ""}</div>
+              {(w.myPct || w.firmPct) && <div style={{ fontSize: 10, color: C.dim }}>My {w.myPct}% · Firm {w.firmPct}%</div>}
+            </div>
+            <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 20, color: C.gold }}>{fmt(w.amount)}</div>
+          </div>
+        ))
+      }
+    </div>
+  );
+}
+
+function WithdrawalModal({ withdrawal, accounts, onClose, onSave, onDelete }) {
+  const w = withdrawal || {};
+  const [accountId, setAccountId] = useState(w.accountId || (accounts[0]?.id || ""));
+  const [date, setDate] = useState(w.date || new Date().toISOString().slice(0, 10));
+  const [amount, setAmount] = useState(w.amount || "");
+  const [myPct, setMyPct] = useState(w.myPct || "");
+  const [firmPct, setFirmPct] = useState(w.firmPct || "");
+  const [notes, setNotes] = useState(w.notes || "");
+  const selectedAcct = accounts.find(a => a.id === accountId);
+  useEffect(() => {
+    if (selectedAcct && !w.id) { if (selectedAcct.myPct) setMyPct(selectedAcct.myPct); if (selectedAcct.firmPct) setFirmPct(selectedAcct.firmPct); }
+  }, [accountId]);
+  const myAmt = amount && myPct ? (parseFloat(amount) * parseFloat(myPct) / 100).toFixed(2) : null;
+  const firmAmt = amount && firmPct ? (parseFloat(amount) * parseFloat(firmPct) / 100).toFixed(2) : null;
+  const save = () => { if (!amount) return; onSave({ id: w.id || uid(), accountId, date, amount: parseFloat(amount)||0, myPct, firmPct, notes }); };
+  return (
+    <Modal title={w.id ? "EDIT WITHDRAWAL" : "NEW WITHDRAWAL"} onClose={onClose}>
+      <Sel label="ACCOUNT" value={accountId} onChange={setAccountId} options={accounts.map(a => ({ value: a.id, label: a.name }))} placeholder="Select..." />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <Inp label="DATE" value={date} onChange={setDate} type="date" />
+        <Inp label="TOTAL AMOUNT ($)" value={amount} onChange={setAmount} type="number" placeholder="0.00" />
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <Inp label="MY PERCENTAGE %" value={myPct} onChange={setMyPct} type="number" placeholder="80" />
+        <Inp label="FIRM PERCENTAGE %" value={firmPct} onChange={setFirmPct} type="number" placeholder="20" />
+      </div>
+      {(myAmt || firmAmt) && (
+        <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: "12px 14px", marginBottom: 13 }}>
+          <div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, marginBottom: 8 }}>BREAKDOWN</div>
+          {myAmt && <div style={{ fontSize: 13, color: C.green, marginBottom: 4 }}>My share: <strong>{fmt(parseFloat(myAmt))}</strong></div>}
+          {firmAmt && <div style={{ fontSize: 13, color: C.gold }}>Firm share: <strong>{fmt(parseFloat(firmAmt))}</strong></div>}
+        </div>
+      )}
+      <div style={{ marginBottom: 13 }}><div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>NOTES (optional)</div><textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Monthly withdrawal, payout #3..." rows={2} style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "IBM Plex Mono, monospace", resize: "vertical" }} /></div>
+      <div style={{ display: "flex", gap: 10 }}><Btn onClick={save} full>Save Withdrawal</Btn>{w.id && <Btn danger onClick={() => { if (confirm("Delete?")) onDelete(w.id); }}>Delete</Btn>}</div>
+    </Modal>
+  );
+}
+
+function FightRounds({ tables, onSave }) {
+  const updateResult = (tableKey, roundIdx, result) => {
+    const newTables = { ...tables };
+    const newResults = [...newTables[tableKey].results];
+    newResults[roundIdx] = newResults[roundIdx] === result ? null : result;
+    newTables[tableKey] = { ...newTables[tableKey], results: newResults };
+    onSave(newTables);
+  };
+  const updateValue = (tableKey, roundIdx, val) => {
+    const newTables = { ...tables };
+    const newValues = [...newTables[tableKey].values];
+    newValues[roundIdx] = parseFloat(val) || 0;
+    newTables[tableKey] = { ...newTables[tableKey], values: newValues };
+    onSave(newTables);
+  };
+  const updateName = (tableKey, name) => {
+    const newTables = { ...tables };
+    newTables[tableKey] = { ...newTables[tableKey], name };
+    onSave(newTables);
+  };
+  return (
+    <div>
+      <div style={{ background: `${C.gold}0a`, border: `1px solid ${C.gold}33`, borderRadius: 10, padding: "14px 18px", marginBottom: 22, display: "flex", alignItems: "center", gap: 14 }}>
+        <div style={{ fontSize: 28 }}>🥊</div>
+        <div><div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 18, letterSpacing: 2, color: C.gold }}>FIGHT ROUNDS TRACKER</div><div style={{ fontSize: 11, color: C.dim, marginTop: 2 }}>Track your 12-round trading challenges. Click ✓ for win, ✗ for loss. Values are editable.</div></div>
+      </div>
+      {Object.entries(tables).map(([key, table]) => {
+        const wins = table.results.filter(r => r === "win").length;
+        const losses = table.results.filter(r => r === "loss").length;
+        const totalValue = table.values.reduce((a, v) => a + v, 0);
+        const wonValue = table.values.reduce((a, v, i) => a + (table.results[i] === "win" ? v : 0), 0);
+        const lostValue = table.values.reduce((a, v, i) => a + (table.results[i] === "loss" ? v : 0), 0);
+        return (
+          <div key={key} style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20, marginBottom: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18 }}>
+              <input value={table.name} onChange={e => updateName(key, e.target.value)} style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 20, letterSpacing: 3, background: "transparent", border: "none", color: C.text, flex: 1, cursor: "text" }} />
+              <div style={{ display: "flex", gap: 16, fontSize: 11 }}>
+                <span style={{ color: C.green }}>{wins}W</span><span style={{ color: C.red }}>{losses}L</span><span style={{ color: C.dim }}>{12 - wins - losses} left</span>
+              </div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, marginBottom: 16 }}>
+              {[{ label: "TOTAL VALUE", val: fmt(totalValue), color: C.text }, { label: "WON", val: fmt(wonValue), color: C.green }, { label: "LOST", val: fmt(lostValue), color: C.red }].map(s => (
+                <div key={s.label} style={{ background: C.bg, borderRadius: 6, padding: "8px 12px" }}><div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, marginBottom: 4 }}>{s.label}</div><div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 16, color: s.color }}>{s.val}</div></div>
+              ))}
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", gap: 8 }}>
+              {table.values.map((val, i) => {
+                const result = table.results[i];
+                const borderColor = result === "win" ? C.green : result === "loss" ? C.red : C.border;
+                const bgColor = result === "win" ? `${C.green}10` : result === "loss" ? `${C.red}10` : C.bg;
+                return (
+                  <div key={i} style={{ background: bgColor, border: `2px solid ${borderColor}`, borderRadius: 8, padding: "10px 8px", textAlign: "center" }}>
+                    <div style={{ fontSize: 9, color: C.muted, letterSpacing: 1, marginBottom: 6 }}>RND {i + 1}</div>
+                    <input type="number" value={val} onChange={e => updateValue(key, i, e.target.value)} style={{ width: "100%", background: "transparent", border: "none", color: C.text, fontSize: 13, fontWeight: 700, textAlign: "center", fontFamily: "Bebas Neue, sans-serif", marginBottom: 8 }} />
+                    <div style={{ display: "flex", gap: 4, justifyContent: "center" }}>
+                      <button onClick={() => updateResult(key, i, "win")} style={{ width: 26, height: 26, borderRadius: 4, border: `1px solid ${C.green}44`, background: result === "win" ? C.green : "transparent", color: result === "win" ? "#000" : C.green, fontSize: 13, cursor: "pointer", fontWeight: 700 }}>✓</button>
+                      <button onClick={() => updateResult(key, i, "loss")} style={{ width: 26, height: 26, borderRadius: 4, border: `1px solid ${C.red}44`, background: result === "loss" ? C.red : "transparent", color: result === "loss" ? "#fff" : C.red, fontSize: 13, cursor: "pointer", fontWeight: 700 }}>✗</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ marginTop: 14, height: 6, borderRadius: 4, overflow: "hidden", display: "flex", background: C.border }}>
+              <div style={{ width: `${wins/12*100}%`, background: C.green, transition: "width .3s" }} />
+              <div style={{ width: `${losses/12*100}%`, background: C.red, transition: "width .3s" }} />
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: C.dim, marginTop: 4 }}><span>Round 1</span><span>Round 12 🏆</span></div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function Charts({ trades, accounts, acctName }) {
+  const [calYear, setCalYear] = useState(new Date().getFullYear());
+  const [calMonth, setCalMonth] = useState(new Date().getMonth());
+  const [selectedDay, setSelectedDay] = useState(null);
   const closed = trades.filter(t => t.result !== "pending");
+  
+  // Monthly P&L
+  const monthlyMap = {};
+  closed.forEach(t => {
+    if (!t.date) return;
+    const [y, m] = t.date.split("-");
+    const key = `${y}-${m}`;
+    if (!monthlyMap[key]) monthlyMap[key] = { pnl: 0, wins: 0, total: 0, year: parseInt(y), month: parseInt(m) - 1 };
+    monthlyMap[key].pnl += t.pnl||0; monthlyMap[key].total++;
+    if (t.result === "win") monthlyMap[key].wins++;
+  });
+  const topMonths = Object.entries(monthlyMap).sort((a, b) => b[1].pnl - a[1].pnl).slice(0, 5);
+
+  // Calendar
+  const calDayMap = {};
+  closed.forEach(t => { if (!t.date) return; if (!calDayMap[t.date]) calDayMap[t.date] = { pnl: 0, trades: [] }; calDayMap[t.date].pnl += t.pnl||0; calDayMap[t.date].trades.push(t); });
+  const firstDay = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const calCells = [];
+  for (let i = 0; i < firstDay; i++) calCells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) calCells.push(d);
+  const dayTrades = selectedDay ? (calDayMap[selectedDay] || { pnl: 0, trades: [] }) : null;
   
   // P&L cumulative over time
   const sortedTrades = [...closed].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
@@ -1187,6 +1427,67 @@ function Charts({ trades, accounts, acctName }) {
           <span>{pnlData[pnlData.length-1]?.date || ""}</span>
         </div>
       </div>
+
+      {/* Calendar */}
+      <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18, marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3 }}>📅 CALENDAR</div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <button onClick={() => { if (calMonth === 0) { setCalMonth(11); setCalYear(y => y-1); } else setCalMonth(m => m-1); setSelectedDay(null); }} style={{ background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "4px 10px", borderRadius: 4, cursor: "pointer" }}>‹</button>
+            <span style={{ fontSize: 12, fontWeight: 700 }}>{MONTHS[calMonth]} {calYear}</span>
+            <button onClick={() => { if (calMonth === 11) { setCalMonth(0); setCalYear(y => y+1); } else setCalMonth(m => m+1); setSelectedDay(null); }} style={{ background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "4px 10px", borderRadius: 4, cursor: "pointer" }}>›</button>
+          </div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4, marginBottom: 4 }}>
+          {["Su","Mo","Tu","We","Th","Fr","Sa"].map(d => <div key={d} style={{ textAlign: "center", fontSize: 9, color: C.muted, padding: "4px 0" }}>{d}</div>)}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4 }}>
+          {calCells.map((d, i) => {
+            if (!d) return <div key={i} />;
+            const dateStr = `${calYear}-${String(calMonth+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+            const data = calDayMap[dateStr];
+            const isSelected = selectedDay === dateStr;
+            const bg = data ? (data.pnl > 0 ? `${C.green}20` : data.pnl < 0 ? `${C.red}20` : `${C.muted}20`) : C.bg;
+            const border = isSelected ? C.accent : data ? (data.pnl > 0 ? C.green : C.red) : C.border;
+            return (
+              <div key={i} onClick={() => setSelectedDay(isSelected ? null : dateStr)} style={{ background: bg, border: `1px solid ${border}44`, borderRadius: 6, padding: "6px 4px", textAlign: "center", cursor: data ? "pointer" : "default", minHeight: 44 }}>
+                <div style={{ fontSize: 10, color: C.dim, marginBottom: 2 }}>{d}</div>
+                {data && <div style={{ fontSize: 9, fontWeight: 700, color: data.pnl >= 0 ? C.green : C.red }}>{fmt(data.pnl)}</div>}
+                {data && <div style={{ fontSize: 8, color: C.muted }}>{data.trades.length}t</div>}
+              </div>
+            );
+          })}
+        </div>
+        {selectedDay && dayTrades && dayTrades.trades.length > 0 && (
+          <div style={{ marginTop: 14, borderTop: `1px solid ${C.border}`, paddingTop: 14 }}>
+            <div style={{ fontSize: 9, color: C.accent, letterSpacing: 2, marginBottom: 10 }}>TRADES ON {selectedDay}</div>
+            {dayTrades.trades.map(t => (
+              <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: C.bg, borderRadius: 6, padding: "8px 12px", marginBottom: 6 }}>
+                <div><span style={{ fontWeight: 700, fontSize: 13 }}>{t.pair}</span><span style={{ fontSize: 10, color: C.dim, marginLeft: 8 }}>{t.time} · {t.session}</span></div>
+                <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 16, color: (t.pnl||0) >= 0 ? C.green : C.red }}>{fmt(t.pnl)}</div>
+              </div>
+            ))}
+            <div style={{ fontSize: 12, color: dayTrades.pnl >= 0 ? C.green : C.red, fontWeight: 700, marginTop: 8, textAlign: "right" }}>Day total: {fmt(dayTrades.pnl)}</div>
+          </div>
+        )}
+      </div>
+
+      {/* Best Months */}
+      {topMonths.length > 0 && (
+        <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18, marginBottom: 16 }}>
+          <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3, marginBottom: 14 }}>🏆 BEST MONTHS HISTORICALLY</div>
+          {topMonths.map(([key, d]) => (
+            <div key={key} style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+              <div style={{ width: 60, fontSize: 11, color: C.dim }}>{MONTHS[d.month]} {d.year}</div>
+              <div style={{ flex: 1, background: C.border, borderRadius: 3, height: 8, overflow: "hidden" }}>
+                <div style={{ width: `${Math.max(Math.abs(d.pnl) / Math.max(...topMonths.map(x => Math.abs(x[1].pnl))) * 100, 2)}%`, height: "100%", background: d.pnl >= 0 ? C.green : C.red, borderRadius: 3 }} />
+              </div>
+              <div style={{ width: 80, textAlign: "right", fontFamily: "Bebas Neue, sans-serif", fontSize: 16, color: d.pnl >= 0 ? C.green : C.red }}>{fmt(d.pnl)}</div>
+              <div style={{ width: 60, textAlign: "right", fontSize: 10, color: C.dim }}>{d.wins}/{d.total} W</div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
         {/* Win/Loss/BE Donut */}
