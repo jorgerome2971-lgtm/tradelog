@@ -550,11 +550,15 @@ STATS: ${JSON.stringify({ total: trades.length, wins: stats.wins, losses: stats.
 TRADES: ${JSON.stringify(trades.map(t => ({ date: t.date, day: t.day, time: t.time, pair: t.pair, type: t.type, pattern: patName(t.patternId), session: t.session, emotion: t.emotion || "—", result: t.result, pnl: t.pnl, riskPct: t.riskPct, notes: t.notes || "" })))}
 JSON: {"overallAssessment":"...","oneThingToFocusOn":"...","strengths":["..."],"weaknesses":["..."],"psychologyInsights":"...","bestDayTime":"...","bestPair":"...","actionPlan":["...","...","...","..."]}`;
     try {
-      const res = await fetch("/.netlify/functions/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 1000, messages: [{ role: "user", content: prompt }] }) });
+      const res = await fetch("/.netlify/functions/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 1500, messages: [{ role: "user", content: prompt }] }) });
       const data = await res.json();
       const text = (data.content || []).map(b => b.text || "").join("");
-      setAiResult(JSON.parse(text.replace(/```json|```/g, "").trim()));
-    } catch { setAiResult({ error: true }); }
+      const clean = text.replace(/```json/g, "").replace(/```/g, "").trim();
+      const jsonStart = clean.indexOf("{");
+      const jsonEnd = clean.lastIndexOf("}");
+      const jsonStr = clean.substring(jsonStart, jsonEnd + 1);
+      setAiResult(JSON.parse(jsonStr));
+    } catch (e) { setAiResult({ error: true }); }
     setAiLoading(false);
   };
 
@@ -1023,12 +1027,15 @@ JSON format:
     try {
       const res = await fetch("/.netlify/functions/claude", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 800, messages: [{ role: "user", content: prompt }] })
+        body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 1200, messages: [{ role: "user", content: prompt }] })
       });
       const data = await res.json();
       const text = (data.content || []).map(b => b.text || "").join("");
-      setAiFeedback(JSON.parse(text.replace(/```json|```/g, "").trim()));
-    } catch { setAiFeedback({ error: true }); }
+      const clean = text.replace(/```json/g, "").replace(/```/g, "").trim();
+      const jsonStart = clean.indexOf("{");
+      const jsonEnd = clean.lastIndexOf("}");
+      setAiFeedback(JSON.parse(clean.substring(jsonStart, jsonEnd + 1)));
+    } catch (e) { setAiFeedback({ error: true }); }
     setAiLoading(false);
   };
 
