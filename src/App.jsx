@@ -145,6 +145,7 @@ export default function App() {
         if (Array.isArray(p)) setPatterns(p.map(r => ({id:r.id, name:r.name, timeframe:r.timeframe, session:r.session, pairs:r.pairs, description:r.description, rules:r.rules, confirmations:r.confirmations, imageLink:r.image_link})));
         if (Array.isArray(pr)) setPairs(pr.map(r => ({id:r.id, symbol:r.symbol, description:r.description||""})));
         if (Array.isArray(bt)) setBacktests(bt.map(r => ({id:r.id, date:r.date, pair:r.pair, type:r.type, patternId:r.pattern_id, timeframe:r.timeframe, result:r.result, pnl:parseFloat(r.pnl)||0, session:r.session, notes:r.notes||"", reason:r.reason||""})));
+        if (Array.isArray(wd)) setWithdrawals(wd.map(r => ({id:r.id, accountId:r.account_id, date:r.date, amount:parseFloat(r.amount)||0, myPct:r.my_pct||"", firmPct:r.firm_pct||"", notes:r.notes||""})));
       } catch (e) { setSaveStatus("⚠ Connection error"); }
       try { const saved = localStorage.getItem("tradelog:roundtables"); setRoundTables(saved ? JSON.parse(saved) : DEFAULT_ROUND_TABLES); } catch { setRoundTables(DEFAULT_ROUND_TABLES); }
       setLoading(false);
