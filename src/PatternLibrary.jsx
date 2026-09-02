@@ -124,10 +124,11 @@ const libVerdict = (verdict, sub) => {
  
 // -- LIBRARY (main tab) --------------------------------------------------------
 export default function PatternLibrary({ supaUrl, supaKey }) {
-  const [entries, setEntries] = useState([]);
+  const [allEntries, setAllEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [fPattern, setFPattern] = useState("");
   const [fVerdict, setFVerdict] = useState("");
+  const [fPair, setFPair] = useState("");
   const [modal, setModal] = useState(null);
   const [detail, setDetail] = useState(null);
  
@@ -136,21 +137,29 @@ export default function PatternLibrary({ supaUrl, supaKey }) {
   const load = async () => {
     setLoading(true);
     try {
-      let url = `${supaUrl}/rest/v1/pattern_library?order=created_at.desc`;
-      if (fPattern) url += `&pattern_type=eq.${fPattern}`;
-      if (fVerdict) url += `&verdict=eq.${fVerdict}`;
+      const url = `${supaUrl}/rest/v1/pattern_library?order=created_at.desc`;
       const r = await fetch(url, { headers: H });
       const data = await r.json();
-      setEntries(Array.isArray(data) ? data : []);
-    } catch { setEntries([]); }
+      setAllEntries(Array.isArray(data) ? data : []);
+    } catch { setAllEntries([]); }
     setLoading(false);
   };
-  useEffect(() => { load(); }, [fPattern, fVerdict]);
+  useEffect(() => { load(); }, []);
  
   const del = async (id) => {
     await fetch(`${supaUrl}/rest/v1/pattern_library?id=eq.${id}`, { method: "DELETE", headers: H });
     setDetail(null); load();
   };
+ 
+  // distinct pairs present in the library, for the pair filter dropdown
+  const pairOptions = Array.from(new Set(allEntries.map(e => e.pair).filter(Boolean))).sort();
+ 
+  // apply filters in memory
+  const entries = allEntries.filter(e =>
+    (!fPattern || e.pattern_type === fPattern) &&
+    (!fVerdict || e.verdict === fVerdict) &&
+    (!fPair || e.pair === fPair)
+  );
  
   return (
     <div>
@@ -158,6 +167,9 @@ export default function PatternLibrary({ supaUrl, supaKey }) {
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 18 }}>
         <div style={{ minWidth: 190 }}>
           <Sel label="PATTERN" value={fPattern} onChange={setFPattern} options={LIB_PATTERNS} placeholder="All patterns" />
+        </div>
+        <div style={{ minWidth: 150 }}>
+          <Sel label="PAIR" value={fPair} onChange={setFPair} options={pairOptions} placeholder="All pairs" />
         </div>
         <div style={{ minWidth: 150 }}>
           <Sel label="VERDICT" value={fVerdict} onChange={setFVerdict}
