@@ -1,16 +1,15 @@
-   // restore
-   import { useState, useMemo, useEffect } from "react";
-
+import { useState, useMemo, useEffect } from "react";
+ 
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
 const fmt = (n) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", signDisplay: "exceptZero" }).format(n || 0);
 const pct = (a, b) => b === 0 ? "—" : ((a / b) * 100).toFixed(1) + "%";
-
+ 
 const C = {
   bg: "#070a0f", panel: "#0d1219", panel2: "#111827", border: "#1e2d3d",
   accent: "#00c9ff", gold: "#f0b429", green: "#10d98a", red: "#f63b3b",
   muted: "#3a5068", text: "#cfe4f5", dim: "#607d94",
 };
-
+ 
 const PAIRS = ["EUR/USD","GBP/USD","USD/JPY","USD/CHF","AUD/USD","NZD/USD","USD/CAD","EUR/GBP","EUR/JPY","GBP/JPY","XAU/USD","US30","NAS100","SPX500","Other"];
 const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday"];
 const SESSIONS = ["London","New York","London/NY Overlap","Asia","Pre-market"];
@@ -18,7 +17,7 @@ const TIMEFRAMES = ["1m","5m","15m","30m","1H","4H","D"];
 const EMOTIONS = ["Calm","Confident","Anxious","FOMO","Doubtful","Patient","Impulsive","Neutral"];
 const CURRENCIES = ["USD","EUR","GBP","MXN"];
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-
+ 
 const css = `
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&family=Bebas+Neue&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -29,7 +28,7 @@ const css = `
   ::-webkit-scrollbar-thumb { background: #1e2d3d; border-radius: 4px; }
   input, select, textarea { outline: none; }
 `;
-
+ 
 function Inp({ label, value, onChange, type = "text", placeholder = "" }) {
   return (
     <div style={{ marginBottom: 13 }}>
@@ -39,7 +38,7 @@ function Inp({ label, value, onChange, type = "text", placeholder = "" }) {
     </div>
   );
 }
-
+ 
 function Sel({ label, value, onChange, options, placeholder = "—" }) {
   return (
     <div style={{ marginBottom: 13 }}>
@@ -54,7 +53,7 @@ function Sel({ label, value, onChange, options, placeholder = "—" }) {
     </div>
   );
 }
-
+ 
 function Btn({ children, onClick, color = C.accent, ghost = false, danger = false, full = false, disabled = false, small = false }) {
   const bg = danger ? C.red : ghost ? "transparent" : color;
   const col = danger ? "#fff" : ghost ? color : "#000";
@@ -65,11 +64,11 @@ function Btn({ children, onClick, color = C.accent, ghost = false, danger = fals
     </button>
   );
 }
-
+ 
 function Tag({ children, color = C.dim }) {
   return <span style={{ fontSize: 9, padding: "2px 7px", background: C.border, borderRadius: 3, color, letterSpacing: 1 }}>{children}</span>;
 }
-
+ 
 function Empty({ text }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, padding: "80px 20px", color: C.muted }}>
@@ -78,11 +77,11 @@ function Empty({ text }) {
     </div>
   );
 }
-
+ 
 function SLabel({ children }) {
   return <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3, marginBottom: 12 }}>{children}</div>;
 }
-
+ 
 function Modal({ title, onClose, children }) {
   return (
     <div onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }} style={{ position: "fixed", inset: 0, background: "#000000bb", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20 }}>
@@ -96,7 +95,7 @@ function Modal({ title, onClose, children }) {
     </div>
   );
 }
-
+ 
 // ── MAIN APP ──────────────────────────────────────────────────────────────────
 export default function App() {
   const [tab, setTab] = useState("dashboard");
@@ -112,12 +111,12 @@ export default function App() {
   const [aiLoading, setAiLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState("");
-
+ 
   // ── SUPABASE CONFIG ───────────────────────────────────────────────────────
   const SUPA_URL = "https://ewbcjvjzravyclgcgtzk.supabase.co";
   const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV3YmNqdmp6cmF2eWNsZ2NndHprIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1MzQ4MTEsImV4cCI6MjA5MTExMDgxMX0.frkGQY3tWZu2FkzFI-HdPNhUEgkoMBGTc-7_OwrnpqY";
   const H = {"Content-Type": "application/json", apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, Prefer: "return=representation"};
-
+ 
   const dbGet = async (table) => {
     const r = await fetch(`${SUPA_URL}/rest/v1/${table}?order=created_at.asc`, {headers: H});
     return r.json();
@@ -129,14 +128,14 @@ export default function App() {
   const dbDelete = async (table, id) => {
     await fetch(`${SUPA_URL}/rest/v1/${table}?id=eq.${id}`, {method:"DELETE", headers:H});
   };
-
+ 
   // ── LOAD from Supabase ────────────────────────────────────────────────────
   const DEFAULT_ROUND_TABLES = {
     a: { name: "TABLE A", values: [500,800,500,500,500,500,500,500,500,500,500,500], results: Array(12).fill(null) },
     b: { name: "TABLE B", values: [500,500,1000,1000,500,500,500,500,500,500,500,500], results: Array(12).fill(null) },
     c: { name: "TABLE C", values: [500,1000,1500,2000,500,1500,1000,1000,500,500,2000,500], results: Array(12).fill(null) },
   };
-
+ 
   useEffect(() => {
     const load = async () => {
       try {
@@ -153,7 +152,7 @@ export default function App() {
     };
     load();
   }, []);
-
+ 
   // ── SAVE to Supabase ──────────────────────────────────────────────────────
   const saveAccounts = async (data) => {
     const prev = accounts;
@@ -167,7 +166,7 @@ export default function App() {
     } catch { setSaveStatus("⚠ Save error"); }
     setTimeout(() => setSaveStatus(""), 2000);
   };
-
+ 
   const saveTrades = async (data) => {
     const prev = trades;
     setTrades(data);
@@ -180,7 +179,7 @@ export default function App() {
     } catch { setSaveStatus("⚠ Save error"); }
     setTimeout(() => setSaveStatus(""), 2000);
   };
-
+ 
   const savePatterns = async (data) => {
     const prev = patterns;
     setPatterns(data);
@@ -193,7 +192,7 @@ export default function App() {
     } catch { setSaveStatus("⚠ Save error"); }
     setTimeout(() => setSaveStatus(""), 2000);
   };
-
+ 
   const savePairs = async (data) => {
     const prev = pairs;
     setPairs(data);
@@ -206,7 +205,7 @@ export default function App() {
     } catch { setSaveStatus("⚠ Save error"); }
     setTimeout(() => setSaveStatus(""), 2000);
   };
-
+ 
   const saveBacktests = async (data) => {
     const prev = backtests;
     setBacktests(data);
@@ -219,7 +218,7 @@ export default function App() {
     } catch { setSaveStatus("⚠ Save error"); }
     setTimeout(() => setSaveStatus(""), 2000);
   };
-
+ 
   const saveWithdrawals = async (data) => {
     const prev = withdrawals; setWithdrawals(data); setSaveStatus("Saving...");
     try {
@@ -230,14 +229,14 @@ export default function App() {
     } catch { setSaveStatus("⚠ Save error"); }
     setTimeout(() => setSaveStatus(""), 2000);
   };
-
+ 
   const saveRoundTables = (data) => {
     setRoundTables(data);
     try { localStorage.setItem("tradelog:roundtables", JSON.stringify(data)); } catch {}
   };
-
+ 
   const close = () => setModal(null);
-
+ 
   const stats = useMemo(() => {
     const wins = trades.filter(t => t.result === "win");
     const losses = trades.filter(t => t.result === "loss");
@@ -250,10 +249,10 @@ export default function App() {
     const rr = avgLoss ? (avgWin / avgLoss).toFixed(2) : "—";
     return { totalPnl, totalWithdrawals, netPnl: totalPnl - totalWithdrawals, wins: wins.length, losses: losses.length, breakevens: breakevens.length, closed: closed.length, winrate: pct(wins.length, wins.length + losses.length), rr, avgWin, avgLoss, total: trades.length };
   }, [trades, withdrawals]);
-
+ 
   const acctName = id => (accounts.find(a => a.id === id) || {}).name || "—";
   const patName = id => (patterns.find(p => p.id === id) || {}).name || "—";
-
+ 
   if (loading) return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", background: C.bg, flexDirection: "column", gap: 14, fontFamily: "IBM Plex Mono, monospace" }}>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
@@ -261,7 +260,7 @@ export default function App() {
       <div style={{ color: C.accent, fontSize: 11, letterSpacing: 3 }}>LOADING YOUR DATA...</div>
     </div>
   );
-
+ 
   const navItems = [
     { id: "dashboard", icon: "▦", label: "Dashboard" },
     { id: "trades", icon: "⟳", label: "Trades" },
@@ -272,22 +271,20 @@ export default function App() {
     { id: "rounds", icon: "🥊", label: "Fight Rounds" },
     { id: "compass", icon: "⊕", label: "AI Compass" },
     { id: "accounts", icon: "▣", label: "Accounts" },
-    { id: "withdrawals", icon: "💸", label: "Withdrawals" },  
-        { id: "withdrawals", icon: "💸", label: "Withdrawals" },
-    { id: "library", icon: "▤", label: "Biblioteca" },
+    { id: "withdrawals", icon: "💸", label: "Withdrawals" },
   ];
-
+ 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: C.bg, color: C.text, fontFamily: "IBM Plex Mono, monospace" }}>
       <style>{css}</style>
-
+ 
       {/* SIDEBAR */}
       <aside style={{ width: 210, background: C.panel, borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column", flexShrink: 0 }}>
         <div style={{ padding: "22px 20px 18px", borderBottom: `1px solid ${C.border}` }}>
           <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 24, letterSpacing: 3 }}>TRADE<span style={{ color: C.accent }}>LOG</span></div>
           <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3, marginTop: 2 }}>FOREX JOURNAL</div>
         </div>
-
+ 
         <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3, padding: "16px 20px 6px" }}>MENU</div>
         {navItems.map(n => (
           <button key={n.id} onClick={() => setTab(n.id)}
@@ -295,7 +292,7 @@ export default function App() {
             <span style={{ fontSize: 14, width: 18, textAlign: "center" }}>{n.icon}</span>{n.label}
           </button>
         ))}
-
+ 
         <div style={{ marginTop: "auto", padding: 16, borderTop: `1px solid ${C.border}` }}>
           <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3, marginBottom: 6 }}>TOTAL P&L</div>
           <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 26, color: stats.netPnl >= 0 ? C.green : C.red }}>{fmt(stats.netPnl)}</div>
@@ -304,12 +301,12 @@ export default function App() {
           {saveStatus && <div style={{ fontSize: 10, color: C.accent, marginTop: 10, letterSpacing: 1 }}>{saveStatus}</div>}
         </div>
       </aside>
-
+ 
       {/* MAIN */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 26px", borderBottom: `1px solid ${C.border}`, background: C.panel, flexShrink: 0 }}>
           <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 20, letterSpacing: 3 }}>
-            {{ dashboard: "DASHBOARD", trades: "TRADE LOG", patterns: "PATTERNS", pairs: "MY PAIRS", charts: "CHARTS", backtest: "BACKTESTING", rounds: "FIGHT ROUNDS", compass: "AI COMPASS", accounts: "ACCOUNTS", withdrawals: "WITHDRAWALS", library: "BIBLIOTECA DE PATRONES", }[tab]}
+            {{ dashboard: "DASHBOARD", trades: "TRADE LOG", patterns: "PATTERNS", pairs: "MY PAIRS", charts: "CHARTS", backtest: "BACKTESTING", rounds: "FIGHT ROUNDS", compass: "AI COMPASS", accounts: "ACCOUNTS", withdrawals: "WITHDRAWALS" }[tab]}
           </div>
           <div style={{ display: "flex", gap: 10 }}>
             {tab === "accounts" && <Btn onClick={() => setModal({ type: "account" })}>+ Account</Btn>}
@@ -324,7 +321,7 @@ export default function App() {
             </>}
           </div>
         </div>
-
+ 
         <div className="fadein" style={{ flex: 1, padding: "22px 26px", overflowY: "auto" }}>
           {tab === "dashboard" && <Dashboard trades={trades} stats={stats} patterns={patterns} acctName={acctName} patName={patName} onViewTrade={id => setModal({ type: "view-trade", id })} />}
           {tab === "trades" && <TradeLog trades={trades} acctName={acctName} patName={patName} onView={id => setModal({ type: "view-trade", id })} />}
@@ -336,10 +333,9 @@ export default function App() {
           {tab === "rounds" && roundTables && <FightRounds tables={roundTables} onSave={saveRoundTables} />}
           {tab === "accounts" && <AccountLog accounts={accounts} trades={trades} withdrawals={withdrawals} onEdit={id => setModal({ type: "account", id })} />}
           {tab === "withdrawals" && <WithdrawalLog withdrawals={withdrawals} accounts={accounts} acctName={acctName} trades={trades} onEdit={id => setModal({ type: "withdrawal", id })} />}
-          {tab === "library" && <PatternLibrary supaUrl={SUPA_URL} supaKey={SUPA_KEY} />} 
         </div>
       </div>
-
+ 
       {/* MODALS */}
       {modal?.type === "account" && (
         <AccountModal
@@ -412,7 +408,7 @@ export default function App() {
     </div>
   );
 }
-
+ 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
 function Dashboard({ trades, stats, patterns, acctName, patName, onViewTrade }) {
   const pm = {};
@@ -424,7 +420,7 @@ function Dashboard({ trades, stats, patterns, acctName, patName, onViewTrade }) 
     if (t.result === "win") pm[t.patternId].wins++;
   });
   const topPatterns = Object.entries(pm).sort((a, b) => b[1].pnl - a[1].pnl).slice(0, 5);
-
+ 
   return (
     <div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 10, marginBottom: 22 }}>
@@ -467,7 +463,7 @@ function Dashboard({ trades, stats, patterns, acctName, patName, onViewTrade }) 
     </div>
   );
 }
-
+ 
 function TradeRow({ t, acctName, patName, onClick, full = false }) {
   const meta = { win: { c: C.green, i: "▲" }, loss: { c: C.red, i: "▼" }, pending: { c: C.gold, i: "◌" }, breakeven: { c: C.muted, i: "─" } };
   const r = meta[t.result] || meta.pending;
@@ -496,12 +492,12 @@ function TradeRow({ t, acctName, patName, onClick, full = false }) {
     </div>
   );
 }
-
+ 
 function TradeLog({ trades, acctName, patName, onView }) {
   if (!trades.length) return <Empty text="No trades yet. Add your first one!" />;
   return <div>{[...trades].reverse().map(t => <TradeRow key={t.id} t={t} acctName={acctName} patName={patName} onClick={() => onView(t.id)} full />)}</div>;
 }
-
+ 
 function PatternLog({ patterns, trades, onView }) {
   if (!patterns.length) return <Empty text="No patterns yet. Document your setups!" />;
   return (
@@ -528,7 +524,7 @@ function PatternLog({ patterns, trades, onView }) {
     </div>
   );
 }
-
+ 
 function Compass({ trades, stats, patName, aiResult, setAiResult, aiLoading, setAiLoading }) {
   const insights = [];
   if (trades.length >= 3) {
@@ -546,7 +542,7 @@ function Compass({ trades, stats, patName, aiResult, setAiResult, aiLoading, set
     const best = Object.entries(dayMap).sort((a, b) => (b[1].w / b[1].t) - (a[1].w / a[1].t))[0];
     if (best) insights.push(`📅 Best day: ${best[0]} (${Math.round(best[1].w / best[1].t * 100)}% WR).`);
   }
-
+ 
   const runAI = async () => {
     if (!trades.length) return;
     setAiLoading(true); setAiResult(null);
@@ -566,7 +562,7 @@ JSON: {"overallAssessment":"...","oneThingToFocusOn":"...","strengths":["..."],"
     } catch (e) { setAiResult({ error: true }); }
     setAiLoading(false);
   };
-
+ 
   return (
     <div style={{ maxWidth: 720 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 18, marginBottom: 22 }}>
@@ -577,7 +573,7 @@ JSON: {"overallAssessment":"...","oneThingToFocusOn":"...","strengths":["..."],"
         </div>
         <Btn onClick={runAI} disabled={aiLoading || !trades.length}>{aiLoading ? "Analyzing..." : "⊕ AI Analysis"}</Btn>
       </div>
-
+ 
       <SLabel>AUTO INSIGHTS</SLabel>
       {!insights.length
         ? <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "14px 16px", marginBottom: 20, color: C.dim, fontSize: 13 }}>Log at least 3 trades to generate insights.</div>
@@ -587,7 +583,7 @@ JSON: {"overallAssessment":"...","oneThingToFocusOn":"...","strengths":["..."],"
             <div style={{ fontSize: 13, lineHeight: 1.7 }}>{ins}</div>
           </div>
         ))}
-
+ 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, margin: "18px 0 22px" }}>
         {[["WIN RATE", stats.winrate], ["AVG R:R", stats.rr !== "—" ? stats.rr + ":1" : "—"], ["AVG WIN", fmt(stats.avgWin)], ["AVG LOSS", fmt(stats.avgLoss)], ["WINNERS", stats.wins], ["LOSERS", stats.losses]].map(([l, v]) => (
           <div key={l} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: "12px 14px" }}>
@@ -596,14 +592,14 @@ JSON: {"overallAssessment":"...","oneThingToFocusOn":"...","strengths":["..."],"
           </div>
         ))}
       </div>
-
+ 
       {aiLoading && (
         <div style={{ background: C.panel, border: `1px solid ${C.accent}33`, borderRadius: 10, padding: "32px 20px", textAlign: "center" }}>
           <div style={{ width: 36, height: 36, border: `3px solid ${C.border}`, borderTopColor: C.accent, borderRadius: "50%", animation: "spin .9s linear infinite", margin: "0 auto 14px" }} />
           <div style={{ color: C.accent, fontSize: 12, letterSpacing: 2 }}>CLAUDE IS ANALYZING YOUR DATA...</div>
         </div>
       )}
-
+ 
       {aiResult && !aiLoading && (aiResult.error
         ? <div style={{ color: C.red, fontSize: 13, padding: 16 }}>Could not generate analysis. Try again.</div>
         : <div>
@@ -647,7 +643,7 @@ JSON: {"overallAssessment":"...","oneThingToFocusOn":"...","strengths":["..."],"
     </div>
   );
 }
-
+ 
 function PairsLog({ pairs, onEdit }) {
   if (!pairs.length) return (
     <div>
@@ -670,7 +666,7 @@ function PairsLog({ pairs, onEdit }) {
     </div>
   );
 }
-
+ 
 function PairModal({ pair, onClose, onSave, onDelete }) {
   const p = pair || {};
   const [symbol, setSymbol] = useState(p.symbol || "");
@@ -695,7 +691,7 @@ function PairModal({ pair, onClose, onSave, onDelete }) {
     </Modal>
   );
 }
-
+ 
 function AccountLog({ accounts, trades, withdrawals, onEdit }) {
   if (!accounts.length) return <Empty text="No accounts yet. Add your first funded account!" />;
   return (
@@ -720,7 +716,7 @@ function AccountLog({ accounts, trades, withdrawals, onEdit }) {
     </div>
   );
 }
-
+ 
 function AccountModal({ account, onClose, onSave, onDelete }) {
   const a = account || {};
   const [name, setName] = useState(a.name || "");
@@ -758,7 +754,7 @@ function AccountModal({ account, onClose, onSave, onDelete }) {
     </Modal>
   );
 }
-
+ 
 function TA({ label, value, onChange, placeholder, rows, color }) {
   return (
     <div style={{ marginBottom: 13 }}>
@@ -768,7 +764,7 @@ function TA({ label, value, onChange, placeholder, rows, color }) {
     </div>
   );
 }
-
+ 
 function TradeModal({ trade, accounts, patterns, pairs, allTrades, onClose, onSave, onDelete }) {
   const t = trade || {};
   const [selectedAccountIds, setSelectedAccountIds] = useState(
@@ -799,9 +795,9 @@ function TradeModal({ trade, accounts, patterns, pairs, allTrades, onClose, onSa
   const [mistakes, setMistakes] = useState(t.mistakes || "");
   const [miniCoach, setMiniCoach] = useState(null);
   const [miniCoachLoading, setMiniCoachLoading] = useState(false);
-
+ 
   const patName = id => (patterns.find(p => p.id === id) || {}).name || "—";
-
+ 
   const handleResultChange = async (newResult) => {
     setResult(newResult);
     if (newResult === "win" || newResult === "loss" || newResult === "breakeven") {
@@ -829,7 +825,7 @@ JSON: {"message":"2-3 sentences of direct coaching based on this result and thei
       setMiniCoach(null);
     }
   };
-
+ 
   const save = () => {
     if (!pair) return;
     if (!selectedAccountIds.length) return alert("Select at least one account");
@@ -842,9 +838,9 @@ JSON: {"message":"2-3 sentences of direct coaching based on this result and thei
       onSave(selectedAccountIds.map(accId => ({ ...base, id: uid(), accountId: accId })));
     }
   };
-
+ 
   // TA is defined outside to prevent remount on re-render
-
+ 
   return (
     <Modal title={t.id ? "EDIT TRADE" : "NEW TRADE"} onClose={onClose}>
       <div style={{ marginBottom: 13 }}>
@@ -897,7 +893,7 @@ JSON: {"message":"2-3 sentences of direct coaching based on this result and thei
         <Inp label="TRADINGVIEW ENTRY LINK" value={entryLink} onChange={setEntryLink} placeholder="https://..." />
         <Inp label="TRADINGVIEW EXIT LINK" value={exitLink} onChange={setExitLink} placeholder="https://..." />
       </div>
-
+ 
       {/* TWO NOTES BOXES */}
       <div style={{ background: `${C.accent}08`, border: `1px solid ${C.accent}22`, borderRadius: 8, padding: "14px", marginBottom: 13 }}>
         <div style={{ fontSize: 9, color: C.accent, letterSpacing: 3, marginBottom: 10 }}>📝 TRADE NOTES</div>
@@ -908,7 +904,7 @@ JSON: {"message":"2-3 sentences of direct coaching based on this result and thei
         <TA label="MISTAKES / ERRORS — What went wrong? (write 'none' if no errors)" value={mistakes} onChange={setMistakes}
           placeholder={"Did you enter too early?\nDid you move your stop?\nDid you break a rule?\n→ Write 'none' if everything was correct."} rows={2} color={C.red} />
       </div>
-
+ 
       {/* RESULT + P&L + RISK */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
         <div style={{ marginBottom: 13 }}>
@@ -921,7 +917,7 @@ JSON: {"message":"2-3 sentences of direct coaching based on this result and thei
         <Inp label="P&L (USD)" value={pnl} onChange={setPnl} type="number" placeholder="±0.00" />
         <Inp label="RISK %" value={riskPct} onChange={setRiskPct} type="number" placeholder="1" />
       </div>
-
+ 
       {/* MINI COACH */}
       {miniCoachLoading && (
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", background: C.bg, border: `1px solid ${C.accent}22`, borderRadius: 8, marginBottom: 13 }}>
@@ -935,7 +931,7 @@ JSON: {"message":"2-3 sentences of direct coaching based on this result and thei
           <div style={{ fontSize: 12, lineHeight: 1.7, color: C.text }}>{miniCoach.emoji} {miniCoach.message}</div>
         </div>
       )}
-
+ 
       <div style={{ display: "flex", gap: 10 }}>
         <Btn onClick={save} full>Save Trade</Btn>
         {t.id && <Btn danger onClick={() => { if (confirm("Delete?")) onDelete(t.id); }}>Delete</Btn>}
@@ -943,7 +939,7 @@ JSON: {"message":"2-3 sentences of direct coaching based on this result and thei
     </Modal>
   );
 }
-
+ 
 function PatternModal({ pattern, onClose, onSave, onDelete }) {
   const p = pattern || {};
   const [name, setName] = useState(p.name || "");
@@ -982,22 +978,22 @@ function PatternModal({ pattern, onClose, onSave, onDelete }) {
     </Modal>
   );
 }
-
+ 
 function TradeViewModal({ trade, acctName, patName, allTrades, patterns, onClose, onEdit }) {
   if (!trade) return null;
   const [aiFeedback, setAiFeedback] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
-
+ 
   const meta = { win: { c: C.green, i: "▲" }, loss: { c: C.red, i: "▼" }, pending: { c: C.gold, i: "◌" }, breakeven: { c: C.muted, i: "─" } };
   const r = meta[trade.result] || meta.pending;
-
+ 
   const det = (label, val) => (
     <div style={{ background: C.bg, borderRadius: 6, padding: "10px 12px" }}>
       <div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, marginBottom: 4 }}>{label}</div>
       <div style={{ fontSize: 13, fontWeight: 700 }}>{val || "—"}</div>
     </div>
   );
-
+ 
   const getAIFeedback = async () => {
     setAiLoading(true);
     setAiFeedback(null);
@@ -1008,16 +1004,16 @@ function TradeViewModal({ trade, acctName, patName, allTrades, patterns, onClose
       .map(t => ({ pair: t.pair, type: t.type, pattern: patName(t.patternId), result: t.result, pnl: t.pnl, emotion: t.emotion, notes: t.notes || "", day: t.day, session: t.session }));
     const patternRules = patterns.map(p => ({ name: p.name, rules: p.rules, description: p.description }));
     const prompt = `You are an expert forex trading coach reviewing a specific trade. Analyze it deeply and give honest, specific feedback. Respond ONLY with valid JSON (no markdown):
-
+ 
 THIS TRADE:
 ${JSON.stringify({ pair: trade.pair, type: trade.type, pattern: patName(trade.patternId), result: trade.result, pnl: trade.pnl, riskPct: trade.riskPct, emotion: trade.emotion, day: trade.day, time: trade.time, session: trade.session, entryNotes: trade.entryNotes || "none", exitNotes: trade.exitNotes || "none", mistakes: trade.mistakes || "none", entryLink: trade.entryLink ? "provided" : "none", exitLink: trade.exitLink ? "provided" : "none" })}
-
+ 
 TRADER'S PATTERN RULES:
 ${JSON.stringify(patternRules)}
-
+ 
 RECENT TRADE HISTORY (last 20):
 ${JSON.stringify(context)}
-
+ 
 JSON format:
 {
   "summary": "2-3 sentence honest assessment of this specific trade",
@@ -1043,7 +1039,7 @@ JSON format:
     } catch (e) { setAiFeedback({ error: true }); }
     setAiLoading(false);
   };
-
+ 
   return (
     <Modal title={`${trade.pair} · ${(trade.type || "").toUpperCase()}`} onClose={onClose}>
       <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18 }}>
@@ -1057,12 +1053,12 @@ JSON format:
           {trade.riskPct && <div style={{ fontSize: 11, color: C.dim }}>Risk: {trade.riskPct}%</div>}
         </div>
       </div>
-
+ 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 14 }}>
         {det("RESULT", trade.result)}{det("PATTERN", patName(trade.patternId))}{det("TIMEFRAME", trade.timeframe)}
         {det("SESSION", trade.session)}{det("EMOTION", trade.emotion)}{det("RISK $", trade.riskAmount ? `$${trade.riskAmount}` : null)}
       </div>
-
+ 
       {(trade.entryNotes || trade.exitNotes || trade.mistakes || trade.notes) && (
         <div style={{ marginBottom: 14 }}>
           {trade.entryNotes && <div style={{ background: `${C.accent}08`, border: `1px solid ${C.accent}22`, borderRadius: 8, padding: "12px 14px", marginBottom: 8 }}>
@@ -1083,12 +1079,12 @@ JSON format:
           </div>}
         </div>
       )}
-
+ 
       <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
         {trade.entryLink && <a href={trade.entryLink} target="_blank" rel="noreferrer" style={{ fontSize: 11, padding: "6px 12px", background: "#071520", border: `1px solid ${C.accent}33`, color: C.accent, borderRadius: 4 }}>↗ TV Entry</a>}
         {trade.exitLink && <a href={trade.exitLink} target="_blank" rel="noreferrer" style={{ fontSize: 11, padding: "6px 12px", background: "#071a10", border: `1px solid ${C.green}33`, color: C.green, borderRadius: 4 }}>↗ TV Exit</a>}
       </div>
-
+ 
       {/* AI FEEDBACK SECTION */}
       <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 14, marginBottom: 14 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
@@ -1097,14 +1093,14 @@ JSON format:
             {aiLoading ? "Analyzing..." : aiFeedback ? "Refresh" : "Get AI Feedback"}
           </Btn>
         </div>
-
+ 
         {aiLoading && (
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px", background: C.bg, borderRadius: 8 }}>
             <div style={{ width: 20, height: 20, border: `2px solid ${C.border}`, borderTopColor: C.accent, borderRadius: "50%", animation: "spin .8s linear infinite", flexShrink: 0 }} />
             <div style={{ fontSize: 11, color: C.dim, letterSpacing: 1 }}>Claude is reviewing your trade and history...</div>
           </div>
         )}
-
+ 
         {aiFeedback && !aiLoading && (aiFeedback.error
           ? <div style={{ fontSize: 12, color: C.red, padding: 12, background: C.bg, borderRadius: 8 }}>Could not generate feedback. Try again.</div>
           : <div>
@@ -1112,7 +1108,7 @@ JSON format:
                 <div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, marginBottom: 6 }}>SUMMARY</div>
                 <div style={{ fontSize: 12, lineHeight: 1.7, color: C.text }}>{aiFeedback.summary}</div>
               </div>
-
+ 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
                 <div style={{ background: "rgba(16,217,138,.06)", border: `1px solid ${C.green}22`, borderRadius: 8, padding: "12px 14px" }}>
                   <div style={{ fontSize: 9, color: C.green, letterSpacing: 2, marginBottom: 8 }}>✅ WHAT WENT WELL</div>
@@ -1123,7 +1119,7 @@ JSON format:
                   {(aiFeedback.whatWentWrong || []).map((s, i) => <div key={i} style={{ fontSize: 11, color: C.text, lineHeight: 1.7, padding: "3px 0", display: "flex", gap: 6 }}><span style={{ color: C.red }}>▼</span>{s}</div>)}
                 </div>
               </div>
-
+ 
               <div style={{ background: C.bg, borderRadius: 8, padding: "12px 14px", marginBottom: 10 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                   <div style={{ fontSize: 9, color: C.muted, letterSpacing: 2 }}>PATTERN RULES</div>
@@ -1131,38 +1127,38 @@ JSON format:
                 </div>
                 <div style={{ fontSize: 12, lineHeight: 1.7, color: C.text }}>{aiFeedback.ruleAnalysis}</div>
               </div>
-
+ 
               <div style={{ background: C.bg, borderRadius: 8, padding: "12px 14px", marginBottom: 10 }}>
                 <div style={{ fontSize: 9, color: C.gold, letterSpacing: 2, marginBottom: 6 }}>🧠 EMOTION IMPACT</div>
                 <div style={{ fontSize: 12, lineHeight: 1.7, color: C.text }}>{aiFeedback.emotionImpact}</div>
               </div>
-
+ 
               {aiFeedback.patternFromHistory && (
                 <div style={{ background: C.bg, borderRadius: 8, padding: "12px 14px", marginBottom: 10 }}>
                   <div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, marginBottom: 6 }}>📊 PATTERN FROM YOUR HISTORY</div>
                   <div style={{ fontSize: 12, lineHeight: 1.7, color: C.text }}>{aiFeedback.patternFromHistory}</div>
                 </div>
               )}
-
+ 
               <div style={{ background: `${C.accent}08`, border: `1px solid ${C.accent}33`, borderRadius: 8, padding: "12px 14px" }}>
                 <div style={{ fontSize: 9, color: C.accent, letterSpacing: 2, marginBottom: 6 }}>⊕ #1 TIP FOR NEXT TIME</div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: C.accent, lineHeight: 1.6 }}>{aiFeedback.oneActionableTip}</div>
               </div>
             </div>
         )}
-
+ 
         {!aiFeedback && !aiLoading && (
           <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.7, padding: "10px 0" }}>
             Click "Get AI Feedback" to receive a personalized analysis of this trade based on your notes, patterns, and full trading history.
           </div>
         )}
       </div>
-
+ 
       <Btn onClick={onEdit} ghost color={C.accent} full>Edit Trade</Btn>
     </Modal>
   );
 }
-
+ 
 function WithdrawalLog({ withdrawals, accounts, acctName, trades, onEdit }) {
   const totalWithdrawn = withdrawals.reduce((a, w) => a + (w.amount || 0), 0);
   const grossPnl = trades.reduce((a, t) => a + (t.pnl || 0), 0);
@@ -1215,7 +1211,7 @@ function WithdrawalLog({ withdrawals, accounts, acctName, trades, onEdit }) {
     </div>
   );
 }
-
+ 
 function WithdrawalModal({ withdrawal, accounts, onClose, onSave, onDelete }) {
   const w = withdrawal || {};
   const [accountId, setAccountId] = useState(w.accountId || (accounts[0]?.id || ""));
@@ -1254,7 +1250,7 @@ function WithdrawalModal({ withdrawal, accounts, onClose, onSave, onDelete }) {
     </Modal>
   );
 }
-
+ 
 function FightRounds({ tables, onSave }) {
   const updateResult = (tableKey, roundIdx, result) => {
     const newTables = { ...tables };
@@ -1328,7 +1324,7 @@ function FightRounds({ tables, onSave }) {
     </div>
   );
 }
-
+ 
 function Charts({ trades, accounts, acctName }) {
   const [calYear, setCalYear] = useState(new Date().getFullYear());
   const [calMonth, setCalMonth] = useState(new Date().getMonth());
@@ -1346,7 +1342,7 @@ function Charts({ trades, accounts, acctName }) {
     if (t.result === "win") monthlyMap[key].wins++;
   });
   const topMonths = Object.entries(monthlyMap).sort((a, b) => b[1].pnl - a[1].pnl).slice(0, 5);
-
+ 
   // Calendar
   const calDayMap = {};
   closed.forEach(t => { if (!t.date) return; if (!calDayMap[t.date]) calDayMap[t.date] = { pnl: 0, trades: [] }; calDayMap[t.date].pnl += t.pnl||0; calDayMap[t.date].trades.push(t); });
@@ -1361,30 +1357,30 @@ function Charts({ trades, accounts, acctName }) {
   const sortedTrades = [...closed].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
   let running = 0;
   const pnlData = sortedTrades.map(t => { running += t.pnl || 0; return { date: t.date, pnl: running, trade: t.pair }; });
-
+ 
   // Win/Loss/Breakeven breakdown
   const wins = trades.filter(t => t.result === "win").length;
   const losses = trades.filter(t => t.result === "loss").length;
   const bes = trades.filter(t => t.result === "breakeven").length;
   const total = wins + losses + bes;
-
+ 
   // By pair
   const pairMap = {};
   closed.forEach(t => { if (!t.pair) return; if (!pairMap[t.pair]) pairMap[t.pair] = { pnl: 0, count: 0 }; pairMap[t.pair].pnl += t.pnl || 0; pairMap[t.pair].count++; });
   const topPairs = Object.entries(pairMap).sort((a, b) => Math.abs(b[1].pnl) - Math.abs(a[1].pnl)).slice(0, 6);
-
+ 
   // By session
   const sessionMap = {};
   closed.forEach(t => { if (!t.session) return; if (!sessionMap[t.session]) sessionMap[t.session] = { pnl: 0, wins: 0, total: 0 }; sessionMap[t.session].pnl += t.pnl || 0; sessionMap[t.session].total++; if (t.result === "win") sessionMap[t.session].wins++; });
-
+ 
   // By day
   const dayMap = {};
   closed.forEach(t => { if (!t.day) return; if (!dayMap[t.day]) dayMap[t.day] = { pnl: 0, wins: 0, total: 0 }; dayMap[t.day].pnl += t.pnl || 0; dayMap[t.day].total++; if (t.result === "win") dayMap[t.day].wins++; });
-
+ 
   // By account
   const acctMap = {};
   trades.forEach(t => { if (!t.accountId) return; if (!acctMap[t.accountId]) acctMap[t.accountId] = { pnl: 0, count: 0 }; acctMap[t.accountId].pnl += t.pnl || 0; acctMap[t.accountId].count++; });
-
+ 
   const Bar = ({ label, value, max, color, sub }) => {
     const w = max ? Math.abs(value / max) * 100 : 0;
     return (
@@ -1399,9 +1395,9 @@ function Charts({ trades, accounts, acctName }) {
       </div>
     );
   };
-
+ 
   if (!closed.length) return <Empty text="Log some trades to see your charts!" />;
-
+ 
   // Simple SVG line chart for cumulative P&L
   const chartW = 600, chartH = 160;
   const maxPnl = Math.max(...pnlData.map(d => d.pnl), 0);
@@ -1413,7 +1409,7 @@ function Charts({ trades, accounts, acctName }) {
     return `${x},${y}`;
   }).join(" ");
   const lastPnl = pnlData[pnlData.length - 1]?.pnl || 0;
-
+ 
   return (
     <div>
       {/* Cumulative P&L Chart */}
@@ -1439,7 +1435,7 @@ function Charts({ trades, accounts, acctName }) {
           <span>{pnlData[pnlData.length-1]?.date || ""}</span>
         </div>
       </div>
-
+ 
       {/* Calendar */}
       <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18, marginBottom: 16 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
@@ -1483,7 +1479,7 @@ function Charts({ trades, accounts, acctName }) {
           </div>
         )}
       </div>
-
+ 
       {/* Best Months */}
       {topMonths.length > 0 && (
         <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18, marginBottom: 16 }}>
@@ -1500,7 +1496,7 @@ function Charts({ trades, accounts, acctName }) {
           ))}
         </div>
       )}
-
+ 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
         {/* Win/Loss/BE Donut */}
         <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18 }}>
@@ -1523,7 +1519,7 @@ function Charts({ trades, accounts, acctName }) {
             </>}
           </div>
         </div>
-
+ 
         {/* By Account */}
         <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18 }}>
           <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3, marginBottom: 14 }}>💼 BY ACCOUNT</div>
@@ -1532,7 +1528,7 @@ function Charts({ trades, accounts, acctName }) {
           ))}
         </div>
       </div>
-
+ 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
         {/* By Pair */}
         <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18 }}>
@@ -1541,7 +1537,7 @@ function Charts({ trades, accounts, acctName }) {
             <Bar key={pair} label={pair} value={d.pnl} max={Math.max(...topPairs.map(x => Math.abs(x[1].pnl)))} sub={`${d.count} trades`} />
           ))}
         </div>
-
+ 
         {/* By Session */}
         <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18 }}>
           <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3, marginBottom: 14 }}>🕐 P&L BY SESSION</div>
@@ -1550,7 +1546,7 @@ function Charts({ trades, accounts, acctName }) {
           ))}
         </div>
       </div>
-
+ 
       {/* By Day */}
       <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18 }}>
         <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3, marginBottom: 14 }}>📅 P&L BY DAY OF WEEK</div>
@@ -1570,7 +1566,7 @@ function Charts({ trades, accounts, acctName }) {
     </div>
   );
 }
-
+ 
 function BacktestLog({ backtests, trades, patterns, patName, pairs, onView }) {
   if (!backtests.length) return (
     <div>
@@ -1580,12 +1576,12 @@ function BacktestLog({ backtests, trades, patterns, patName, pairs, onView }) {
       </div>
     </div>
   );
-
+ 
   const wins = backtests.filter(b => b.result === "win").length;
   const losses = backtests.filter(b => b.result === "loss").length;
   const totalPnl = backtests.reduce((a, b) => a + (b.pnl || 0), 0);
   const realPnl = trades.reduce((a, t) => a + (t.pnl || 0), 0);
-
+ 
   return (
     <div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 20 }}>
@@ -1624,7 +1620,7 @@ function BacktestLog({ backtests, trades, patterns, patName, pairs, onView }) {
     </div>
   );
 }
-
+ 
 function BacktestModal({ backtest, patterns, pairs, onClose, onSave, onDelete }) {
   const b = backtest || {};
   const [date, setDate] = useState(b.date || new Date().toISOString().slice(0, 10));
@@ -1675,14 +1671,14 @@ function BacktestModal({ backtest, patterns, pairs, onClose, onSave, onDelete })
     </Modal>
   );
 }
-
+ 
 function BacktestViewModal({ backtest, patName, trades, patterns, onClose, onEdit }) {
   if (!backtest) return null;
   const [aiAnalysis, setAiAnalysis] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
   const meta = { win: { c: C.green, i: "▲" }, loss: { c: C.red, i: "▼" }, breakeven: { c: C.muted, i: "─" } };
   const r = meta[backtest.result] || meta.win;
-
+ 
   const getAI = async () => {
     setAiLoading(true); setAiAnalysis(null);
     const realTrades = trades.slice(-20).map(t => ({ pair: t.pair, result: t.result, pnl: t.pnl, pattern: patName(t.patternId), emotion: t.emotion, session: t.session }));
@@ -1700,7 +1696,7 @@ JSON: {"setupQuality":"rate the setup quality 1-10 and explain","comparedToReal"
     } catch { setAiAnalysis({ error: true }); }
     setAiLoading(false);
   };
-
+ 
   return (
     <Modal title={`[BT] ${backtest.pair} · ${(backtest.type || "").toUpperCase()}`} onClose={onClose}>
       <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18 }}>
@@ -1735,7 +1731,7 @@ JSON: {"setupQuality":"rate the setup quality 1-10 and explain","comparedToReal"
     </Modal>
   );
 }
-
+ 
 function PatternViewModal({ pattern, trades, onClose, onEdit }) {
   if (!pattern) return null;
   const pt = trades.filter(t => t.patternId === pattern.id);
@@ -1762,4 +1758,7 @@ function PatternViewModal({ pattern, trades, onClose, onEdit }) {
       <Btn onClick={onEdit} ghost color={C.accent} full>Edit Pattern</Btn>
     </Modal>
   );
-}{tab === "library" && <PatternLibrary supaUrl={SUPA_URL} supaKey={SUPA_KEY} />}
+}
+ 
+
+
