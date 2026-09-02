@@ -1,20 +1,22 @@
 import { useState, useEffect } from "react";
  
 /* ============================================================
-   BIBLIOTECA DE PATRONES - Proyecto Montecristo
-   Archivo SEPARADO y autocontenido. Se crea en GitHub como
-   src/PatternLibrary.jsx (caja vacia, sin mezclarse con App.jsx).
-   App.jsx solo lo importa y lo llama - 4 lineas pequenas.
+   PATTERNS LIBRARY - Montecristo Project
+   Separate, self-contained file. Created in GitHub as
+   src/PatternLibrary.jsx (empty box, does not mix with App.jsx).
+   App.jsx only imports and calls it - 4 small lines.
+   Visible text in English; stored values (si_es, no_es, etc.)
+   kept intact so the filter and table schema keep working.
    ============================================================ */
  
-// -- Paleta (misma de la app) --------------------------------------------------
+// -- Palette (same as the app) -------------------------------------------------
 const C = {
   bg: "#070a0f", panel: "#0d1219", panel2: "#111827", border: "#1e2d3d",
   accent: "#00c9ff", gold: "#f0b429", green: "#10d98a", red: "#f63b3b",
   muted: "#3a5068", text: "#cfe4f5", dim: "#607d94",
 };
  
-// -- Helpers de UI (copias locales, para no depender de App.jsx) ----------------
+// -- UI helpers (local copies, so this file needs nothing from App.jsx) ---------
 function Inp({ label, value, onChange, type = "text", placeholder = "" }) {
   return (
     <div style={{ marginBottom: 13 }}>
@@ -88,7 +90,7 @@ function TA({ label, value, onChange, placeholder, rows, color }) {
   );
 }
  
-// -- Datos de la biblioteca ----------------------------------------------------
+// -- Library data --------------------------------------------------------------
 const LIB_PATTERNS = [
   { value: "bull_flag",            label: "Bull Flag" },
   { value: "bear_flag",            label: "Bear Flag" },
@@ -103,23 +105,24 @@ const LIB_PATTERNS = [
 const libPatLabel = (v) => (LIB_PATTERNS.find(p => p.value === v) || {}).label || v;
  
 const LIB_RULES = {
-  1: "R1 - 3 toques arriba y abajo",
-  2: "R2 - Triple confirmacion",
-  3: "R3 - SL anclado a estructura",
-  4: "R4 - TP en fin del patron",
-  5: "R5 - Riesgo <= 1%",
-  6: "R6 - Excepcion spread (max 1.7%)",
-  7: "R7 - Patron en el retroceso",
-  8: "R8 - Tamano del patron",
+  1: "R1 - 3 touches top & bottom",
+  2: "R2 - Triple confirmation",
+  3: "R3 - SL anchored to structure",
+  4: "R4 - TP at pattern end",
+  5: "R5 - Risk <= 1%",
+  6: "R6 - Spread exception (max 1.7%)",
+  7: "R7 - Pattern in the pullback",
+  8: "R8 - Pattern size",
 };
  
+// stored verdict values stay 'no_es' / 'si_es'; only the LABELS are in English
 const libVerdict = (verdict, sub) => {
-  if (verdict === "no_es") return { color: C.red, label: "NO ES" };
-  if (sub === "casi_perfecto") return { color: C.gold, label: "SI ES - casi perfecto" };
-  return { color: C.green, label: "SI ES - perfecto" };
+  if (verdict === "no_es") return { color: C.red, label: "INVALID" };
+  if (sub === "casi_perfecto") return { color: C.gold, label: "VALID - near-perfect" };
+  return { color: C.green, label: "VALID - perfect" };
 };
  
-// -- BIBLIOTECA (pestana principal) --------------------------------------------
+// -- LIBRARY (main tab) --------------------------------------------------------
 export default function PatternLibrary({ supaUrl, supaKey }) {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -151,22 +154,22 @@ export default function PatternLibrary({ supaUrl, supaKey }) {
  
   return (
     <div>
-      {/* Filtros */}
+      {/* Filters */}
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 18 }}>
         <div style={{ minWidth: 190 }}>
-          <Sel label="PATRON" value={fPattern} onChange={setFPattern} options={LIB_PATTERNS} placeholder="Todos los patrones" />
+          <Sel label="PATTERN" value={fPattern} onChange={setFPattern} options={LIB_PATTERNS} placeholder="All patterns" />
         </div>
         <div style={{ minWidth: 150 }}>
-          <Sel label="VEREDICTO" value={fVerdict} onChange={setFVerdict}
-            options={[{ value: "si_es", label: "SI ES" }, { value: "no_es", label: "NO ES" }]} placeholder="Todos" />
+          <Sel label="VERDICT" value={fVerdict} onChange={setFVerdict}
+            options={[{ value: "si_es", label: "VALID" }, { value: "no_es", label: "INVALID" }]} placeholder="All" />
         </div>
         <div style={{ marginBottom: 13, marginLeft: "auto" }}>
-          <Btn onClick={() => setModal({})}>+ Clasificar caso</Btn>
+          <Btn onClick={() => setModal({})}>+ Classify case</Btn>
         </div>
       </div>
  
-      {loading ? <Empty text="Cargando biblioteca..." />
-        : !entries.length ? <Empty text="No hay casos con este filtro. Clasifica el primero." />
+      {loading ? <Empty text="Loading library..." />
+        : !entries.length ? <Empty text="No cases with this filter. Classify the first one." />
         : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(240px,1fr))", gap: 14 }}>
             {entries.map(e => {
@@ -176,7 +179,7 @@ export default function PatternLibrary({ supaUrl, supaKey }) {
                   style={{ background: C.panel, border: `1px solid ${C.border}`, borderLeft: `3px solid ${v.color}`, borderRadius: 10, overflow: "hidden", cursor: "pointer" }}>
                   {e.image_url
                     ? <img src={e.image_url} alt="" style={{ width: "100%", height: 140, objectFit: "cover", display: "block", background: C.bg }} />
-                    : <div style={{ height: 140, background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", color: C.muted, fontSize: 11 }}>sin imagen</div>}
+                    : <div style={{ height: 140, background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", color: C.muted, fontSize: 11 }}>no image</div>}
                   <div style={{ padding: "12px 14px" }}>
                     <div style={{ fontSize: 10, color: v.color, letterSpacing: 1, fontWeight: 700 }}>{v.label}</div>
                     <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 17, letterSpacing: 1, marginTop: 3 }}>
@@ -200,7 +203,7 @@ export default function PatternLibrary({ supaUrl, supaKey }) {
   );
 }
  
-// -- Formulario para clasificar un caso ----------------------------------------
+// -- Case classification form --------------------------------------------------
 function PatternCaseModal({ supaUrl, supaKey, onClose, onDone }) {
   const [verdict, setVerdict] = useState("si_es");
   const [sub, setSub] = useState("perfecto");
@@ -217,7 +220,7 @@ function PatternCaseModal({ supaUrl, supaKey, onClose, onDone }) {
   const toggleRule = (r) => setRules(p => p.includes(r) ? p.filter(x => x !== r) : [...p, r].sort((a, b) => a - b));
  
   const save = async () => {
-    if (!description.trim()) return alert("Escribe el porque antes de guardar.");
+    if (!description.trim()) return alert("Write the reason before saving.");
     setSaving(true);
     try {
       let image_url = null;
@@ -230,8 +233,8 @@ function PatternCaseModal({ supaUrl, supaKey, onClose, onDone }) {
             body: file,
           });
           if (up.ok) image_url = `${supaUrl}/storage/v1/object/public/pattern-library/${path}`;
-          else alert("No se pudo subir la imagen (se guarda el caso sin ella).");
-        } catch { alert("No se pudo subir la imagen (se guarda el caso sin ella)."); }
+          else alert("Could not upload the image (the case will be saved without it).");
+        } catch { alert("Could not upload the image (the case will be saved without it)."); }
       }
       const row = {
         pattern_type: patternType,
@@ -254,33 +257,33 @@ function PatternCaseModal({ supaUrl, supaKey, onClose, onDone }) {
       if (!r.ok) throw new Error(await r.text());
       onDone();
     } catch (e) {
-      alert("No se pudo guardar: " + (e.message || e));
+      alert("Could not save: " + (e.message || e));
     }
     setSaving(false);
   };
  
   return (
-    <Modal title="CLASIFICAR CASO" onClose={onClose}>
+    <Modal title="CLASSIFY CASE" onClose={onClose}>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <Sel label="VEREDICTO" value={verdict} onChange={setVerdict}
-          options={[{ value: "si_es", label: "SI ES" }, { value: "no_es", label: "NO ES" }]} placeholder="" />
+        <Sel label="VERDICT" value={verdict} onChange={setVerdict}
+          options={[{ value: "si_es", label: "VALID" }, { value: "no_es", label: "INVALID" }]} placeholder="" />
         {verdict === "si_es"
-          ? <Sel label="PERFECTO O CASI?" value={sub} onChange={setSub}
-              options={[{ value: "perfecto", label: "Perfecto (se entro)" }, { value: "casi_perfecto", label: "Casi perfecto (no se entro)" }]} placeholder="" />
+          ? <Sel label="PERFECT OR NEAR?" value={sub} onChange={setSub}
+              options={[{ value: "perfecto", label: "Perfect (entered)" }, { value: "casi_perfecto", label: "Near-perfect (not entered)" }]} placeholder="" />
           : <div />}
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <Sel label="PATRON" value={patternType} onChange={setPatternType} options={LIB_PATTERNS} placeholder="" />
-        <Sel label="DIRECCION" value={direction} onChange={setDirection}
-          options={[{ value: "alcista", label: "Alcista" }, { value: "bajista", label: "Bajista" }]} placeholder="-" />
+        <Sel label="PATTERN" value={patternType} onChange={setPatternType} options={LIB_PATTERNS} placeholder="" />
+        <Sel label="DIRECTION" value={direction} onChange={setDirection}
+          options={[{ value: "bullish", label: "Bullish" }, { value: "bearish", label: "Bearish" }]} placeholder="-" />
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <Inp label="PAR" value={pair} onChange={setPair} placeholder="GBP/NZD" />
-        <Sel label="TEMPORALIDAD" value={timeframe} onChange={setTimeframe} options={["1H", "4H", "15m", "D"]} placeholder="" />
+        <Inp label="PAIR" value={pair} onChange={setPair} placeholder="GBP/NZD" />
+        <Sel label="TIMEFRAME" value={timeframe} onChange={setTimeframe} options={["1H", "4H", "15m", "D"]} placeholder="" />
       </div>
  
       <div style={{ marginBottom: 13 }}>
-        <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 8 }}>REGLAS IMPLICADAS (la culpable si NO ES - las que confirman si SI ES)</div>
+        <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 8 }}>RULES INVOLVED (the culprit if INVALID - the ones that confirm if VALID)</div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
           {Object.keys(LIB_RULES).map(k => Number(k)).map(r => (
             <button key={r} onClick={() => toggleRule(r)} title={LIB_RULES[r]}
@@ -294,27 +297,27 @@ function PatternCaseModal({ supaUrl, supaKey, onClose, onDone }) {
         </div>
       </div>
  
-      <TA label="EL PORQUE - por que si es, o por que no es?" value={description} onChange={setDescription}
-        placeholder={"Ej: rompio la linea del triangulo pero no rompio el bajo anterior; sin ese rompimiento de estructura, la triple confirmacion queda incompleta -> no es entrada."}
+      <TA label="THE REASON - why is it valid, or why not?" value={description} onChange={setDescription}
+        placeholder={"Ex: it broke the triangle line but did not break the previous low; without that structure break, the triple confirmation is incomplete -> not an entry."}
         rows={4} color={C.accent} />
  
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 2 }}>
         <div style={{ marginBottom: 13 }}>
-          <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>CAPTURA (imagen)</div>
+          <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>SCREENSHOT (image)</div>
           <input type="file" accept="image/*" onChange={e => setFile(e.target.files[0])}
             style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "7px 10px", borderRadius: 6, fontSize: 11, fontFamily: "IBM Plex Mono, monospace" }} />
         </div>
-        <Inp label="LINK TRADINGVIEW (opcional)" value={tvLink} onChange={setTvLink} placeholder="https://..." />
+        <Inp label="TRADINGVIEW LINK (optional)" value={tvLink} onChange={setTvLink} placeholder="https://..." />
       </div>
  
       <div style={{ display: "flex", gap: 10 }}>
-        <Btn onClick={save} disabled={saving} full>{saving ? "Guardando..." : "Guardar caso"}</Btn>
+        <Btn onClick={save} disabled={saving} full>{saving ? "Saving..." : "Save case"}</Btn>
       </div>
     </Modal>
   );
 }
  
-// -- Detalle de un caso --------------------------------------------------------
+// -- Case detail ---------------------------------------------------------------
 function PatternCaseView({ entry, onClose, onDelete }) {
   const v = libVerdict(entry.verdict, entry.sub_verdict);
   return (
@@ -329,24 +332,24 @@ function PatternCaseView({ entry, onClose, onDelete }) {
  
       {(entry.rules || []).length > 0 && (
         <div style={{ background: C.bg, borderRadius: 8, padding: "12px 14px", marginBottom: 14 }}>
-          <div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, marginBottom: 8 }}>REGLAS</div>
+          <div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, marginBottom: 8 }}>RULES</div>
           {entry.rules.map(r => <div key={r} style={{ fontSize: 12, color: C.text, lineHeight: 1.8 }}>- {LIB_RULES[r]}</div>)}
         </div>
       )}
  
       <div style={{ background: `${C.accent}08`, border: `1px solid ${C.accent}22`, borderRadius: 8, padding: "12px 14px", marginBottom: 14 }}>
-        <div style={{ fontSize: 9, color: C.accent, letterSpacing: 2, marginBottom: 6 }}>EL PORQUE</div>
+        <div style={{ fontSize: 9, color: C.accent, letterSpacing: 2, marginBottom: 6 }}>THE REASON</div>
         <div style={{ fontSize: 12, lineHeight: 1.7, color: C.text, whiteSpace: "pre-wrap" }}>{entry.description}</div>
       </div>
  
       {entry.tradingview_link && (
         <a href={entry.tradingview_link} target="_blank" rel="noreferrer"
           style={{ display: "block", textAlign: "center", padding: 10, background: `${C.accent}10`, border: `1px solid ${C.accent}33`, color: C.accent, borderRadius: 6, marginBottom: 14, fontSize: 12 }}>
-          Abrir en TradingView
+          Open in TradingView
         </a>
       )}
  
-      <Btn danger onClick={() => { if (confirm("Borrar este caso?")) onDelete(entry.id); }} full>Borrar caso</Btn>
+      <Btn danger onClick={() => { if (confirm("Delete this case?")) onDelete(entry.id); }} full>Delete case</Btn>
     </Modal>
   );
 }
