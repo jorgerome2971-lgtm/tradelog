@@ -271,7 +271,9 @@ export default function App() {
     { id: "rounds", icon: "🥊", label: "Fight Rounds" },
     { id: "compass", icon: "⊕", label: "AI Compass" },
     { id: "accounts", icon: "▣", label: "Accounts" },
-    { id: "withdrawals", icon: "💸", label: "Withdrawals" },
+    { id: "withdrawals", icon: "💸", label: "Withdrawals" },  
+        { id: "withdrawals", icon: "💸", label: "Withdrawals" },
+    { id: "library", icon: "▤", label: "Biblioteca" },
   ];
 
   return (
@@ -306,7 +308,7 @@ export default function App() {
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 26px", borderBottom: `1px solid ${C.border}`, background: C.panel, flexShrink: 0 }}>
           <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 20, letterSpacing: 3 }}>
-            {{ dashboard: "DASHBOARD", trades: "TRADE LOG", patterns: "PATTERNS", pairs: "MY PAIRS", charts: "CHARTS", backtest: "BACKTESTING", rounds: "FIGHT ROUNDS", compass: "AI COMPASS", accounts: "ACCOUNTS", withdrawals: "WITHDRAWALS" }[tab]}
+            {{ dashboard: "DASHBOARD", trades: "TRADE LOG", patterns: "PATTERNS", pairs: "MY PAIRS", charts: "CHARTS", backtest: "BACKTESTING", rounds: "FIGHT ROUNDS", compass: "AI COMPASS", accounts: "ACCOUNTS", withdrawals: "WITHDRAWALS", library: "BIBLIOTECA DE PATRONES", }[tab]}
           </div>
           <div style={{ display: "flex", gap: 10 }}>
             {tab === "accounts" && <Btn onClick={() => setModal({ type: "account" })}>+ Account</Btn>}
@@ -333,6 +335,7 @@ export default function App() {
           {tab === "rounds" && roundTables && <FightRounds tables={roundTables} onSave={saveRoundTables} />}
           {tab === "accounts" && <AccountLog accounts={accounts} trades={trades} withdrawals={withdrawals} onEdit={id => setModal({ type: "account", id })} />}
           {tab === "withdrawals" && <WithdrawalLog withdrawals={withdrawals} accounts={accounts} acctName={acctName} trades={trades} onEdit={id => setModal({ type: "withdrawal", id })} />}
+          {tab === "library" && <PatternLibrary supaUrl={SUPA_URL} supaKey={SUPA_KEY} />} 
         </div>
       </div>
 
@@ -1758,4 +1761,4 @@ function PatternViewModal({ pattern, trades, onClose, onEdit }) {
       <Btn onClick={onEdit} ghost color={C.accent} full>Edit Pattern</Btn>
     </Modal>
   );
-}
+}{tab === "library" && <PatternLibrary supaUrl={SUPA_URL} supaKey={SUPA_KEY} />}
