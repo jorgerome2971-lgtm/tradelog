@@ -272,7 +272,7 @@ export default function App() {
     { id: "compass", icon: "⊕", label: "AI Compass" },
     { id: "accounts", icon: "▣", label: "Accounts" },
     { id: "withdrawals", icon: "💸", label: "Withdrawals" },
-   { id: "library", icon: "📚", label: "Biblioteca" },
+   { id: "library", icon: "📚", label: "Patterns Library" },
   ];
  
   return (
@@ -307,7 +307,7 @@ export default function App() {
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 26px", borderBottom: `1px solid ${C.border}`, background: C.panel, flexShrink: 0 }}>
           <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 20, letterSpacing: 3 }}>
-           {{ dashboard: "DASHBOARD", trades: "TRADE LOG", patterns: "PATTERNS", pairs: "MY PAIRS", charts: "CHARTS", backtest: "BACKTESTING", rounds: "FIGHT ROUNDS", compass: "AI COMPASS", accounts: "ACCOUNTS", withdrawals: "WITHDRAWALS", library: "BIBLIOTECA DE PATRONES" }[tab]}
+           {{ dashboard: "DASHBOARD", trades: "TRADE LOG", patterns: "PATTERNS", pairs: "MY PAIRS", charts: "CHARTS", backtest: "BACKTESTING", rounds: "FIGHT ROUNDS", compass: "AI COMPASS", accounts: "ACCOUNTS", withdrawals: "WITHDRAWALS", library:"PATTERNS LIBRARY"" }[tab]}
           </div>
           <div style={{ display: "flex", gap: 10 }}>
             {tab === "accounts" && <Btn onClick={() => setModal({ type: "account" })}>+ Account</Btn>}
