@@ -1,6 +1,5 @@
    // restore
    import { useState, useMemo, useEffect } from "react";
-import { useState, useMemo, useEffect } from "react";
 
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
 const fmt = (n) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", signDisplay: "exceptZero" }).format(n || 0);
