@@ -146,7 +146,7 @@ export default function App() {
         if (Array.isArray(t)) setTrades(t.map(r => ({id:r.id, accountId:r.account_id, date:r.date, day:r.day, time:r.time, session:r.session, pair:r.pair, type:r.type, patternId:r.pattern_id, timeframe:r.timeframe, result:r.result, pnl:parseFloat(r.pnl)||0, riskPct:r.risk_pct, riskAmount:r.risk_amount, emotion:r.emotion, entryLink:r.entry_link, exitLink:r.exit_link, entryNotes:r.entry_notes, exitNotes:r.exit_notes, mistakes:r.mistakes, rules:r.rules||[]})));
         if (Array.isArray(p)) setPatterns(p.map(r => ({id:r.id, name:r.name, timeframe:r.timeframe, session:r.session, pairs:r.pairs, description:r.description, rules:r.rules, confirmations:r.confirmations, imageLink:r.image_link})));
         if (Array.isArray(pr)) setPairs(pr.map(r => ({id:r.id, symbol:r.symbol, description:r.description||""})));
-        if (Array.isArray(bt)) setBacktests(bt.map(r => ({id:r.id, date:r.date, pair:r.pair, type:r.type, patternId:r.pattern_id, timeframe:r.timeframe, result:r.result, pnl:parseFloat(r.pnl)||0, session:r.session, notes:r.notes||"", reason:r.reason||""})));
+        if (Array.isArray(bt)) setBacktests(bt.map(r => ({id:r.id, date:r.date, pair:r.pair, type:r.type, patternId:r.pattern_id, timeframe:r.timeframe, result:r.result, pnl:parseFloat(r.pnl)||0, session:r.session, notes:r.notes||"", reason:r.reason||"", rules:r.rules||[]})));
         if (Array.isArray(wd)) setWithdrawals(wd.map(r => ({id:r.id, accountId:r.account_id, date:r.date, amount:parseFloat(r.amount)||0, myPct:r.my_pct||"", firmPct:r.firm_pct||"", notes:r.notes||""})));
         if (Array.isArray(pl)) setPatternLib(pl);
       } catch (e) { setSaveStatus("⚠ Connection error"); }
@@ -216,7 +216,7 @@ export default function App() {
     try {
       const deleted = prev.filter(b => !data.find(d => d.id === b.id));
       await Promise.all(deleted.map(b => dbDelete("backtests", b.id)));
-      if (data.length) await dbUpsert("backtests", data.map(b => ({id:b.id, date:b.date||null, pair:b.pair||null, type:b.type||null, pattern_id:b.patternId||null, timeframe:b.timeframe||null, result:b.result||"win", pnl:b.pnl||0, session:b.session||null, notes:b.notes||null, reason:b.reason||null})));
+      if (data.length) await dbUpsert("backtests", data.map(b => ({id:b.id, date:b.date||null, pair:b.pair||null, type:b.type||null, pattern_id:b.patternId||null, timeframe:b.timeframe||null, result:b.result||"win", pnl:b.pnl||0, session:b.session||null, notes:b.notes||null, reason:b.reason||null, rules:b.rules||[]})));
       setSaveStatus("✓ Saved");
     } catch { setSaveStatus("⚠ Save error"); }
     setTimeout(() => setSaveStatus(""), 2000);
@@ -1711,7 +1711,9 @@ function BacktestModal({ backtest, patterns, pairs, onClose, onSave, onDelete })
   const [pnl, setPnl] = useState(b.pnl ?? "");
   const [notes, setNotes] = useState(b.notes || "");
   const [reason, setReason] = useState(b.reason || "");
-  const save = () => { if (!pair) return; onSave({ id: b.id || uid(), date, pair, type, patternId, timeframe, session, result, pnl: parseFloat(pnl)||0, notes, reason }); };
+  const [rules, setRules] = useState(b.rules || []);
+  const toggleRule = (r) => setRules(p => p.includes(r) ? p.filter(x => x !== r) : [...p, r].sort((a, b) => a - b));
+  const save = () => { if (!pair) return; onSave({ id: b.id || uid(), date, pair, type, patternId, timeframe, session, result, pnl: parseFloat(pnl)||0, notes, reason, rules }); };
   return (
     <Modal title={b.id ? "EDIT BACKTEST" : "NEW BACKTEST TRADE"} onClose={onClose}>
       <div style={{ background: `${C.gold}0a`, border: `1px solid ${C.gold}33`, borderRadius: 6, padding: "10px 14px", marginBottom: 14, fontSize: 11, color: C.gold }}>
@@ -1736,6 +1738,23 @@ function BacktestModal({ backtest, patterns, pairs, onClose, onSave, onDelete })
         <Sel label="SESSION" value={session} onChange={setSession} options={SESSIONS} />
         <Sel label="HYPOTHETICAL RESULT" value={result} onChange={setResult} options={["win","loss","breakeven"]} placeholder="" />
         <Inp label="HYPOTHETICAL P&L" value={pnl} onChange={setPnl} type="number" placeholder="±0.00" />
+      </div>
+      <div style={{ background: `${C.gold}0a`, border: `1px solid ${C.gold}33`, borderRadius: 8, padding: "14px", marginBottom: 13 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+          <div style={{ fontSize: 9, color: C.gold, letterSpacing: 3 }}>✓ THE 8 RULES — mark the ones the setup met</div>
+          <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 18, color: rules.length === 8 ? C.green : rules.length >= 6 ? C.gold : C.red }}>{rules.length}/8</div>
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {[1,2,3,4,5,6,7,8].map(r => (
+            <button key={r} onClick={() => toggleRule(r)} title={TRADE_RULES[r]}
+              style={{ padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontSize: 11, fontWeight: 700, fontFamily: "IBM Plex Mono, monospace",
+                       border: `1px solid ${rules.includes(r) ? C.gold : C.border}`,
+                       background: rules.includes(r) ? `${C.gold}22` : C.bg,
+                       color: rules.includes(r) ? C.gold : C.dim }}>
+              R{r}
+            </button>
+          ))}
+        </div>
       </div>
       <div style={{ marginBottom: 13 }}>
         <div style={{ fontSize: 9, color: C.gold, letterSpacing: 2, marginBottom: 5 }}>WHY DIDN'T YOU TAKE IT? (or what did you learn?)</div>
@@ -1788,6 +1807,19 @@ JSON: {"setupQuality":"rate the setup quality 1-10 and explain","comparedToReal"
           <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 22, color: (backtest.pnl || 0) >= 0 ? C.green : C.red, marginTop: 4 }}>{fmt(backtest.pnl)}</div>
         </div>
       </div>
+      {(backtest.rules || []).length > 0 && (
+        <div style={{ background: `${C.gold}0a`, border: `1px solid ${C.gold}33`, borderRadius: 8, padding: "12px 14px", marginBottom: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+            <div style={{ fontSize: 9, color: C.gold, letterSpacing: 2 }}>✓ RULES MET</div>
+            <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 16, color: backtest.rules.length === 8 ? C.green : backtest.rules.length >= 6 ? C.gold : C.red }}>{backtest.rules.length}/8</div>
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+            {[1,2,3,4,5,6,7,8].map(r => (
+              <span key={r} style={{ fontSize: 10, padding: "2px 8px", borderRadius: 3, fontWeight: 700, border: `1px solid ${backtest.rules.includes(r) ? C.gold : C.border}`, background: backtest.rules.includes(r) ? `${C.gold}22` : "transparent", color: backtest.rules.includes(r) ? C.gold : C.muted }}>R{r}</span>
+            ))}
+          </div>
+        </div>
+      )}
       {backtest.reason && <div style={{ background: `${C.gold}08`, border: `1px solid ${C.gold}22`, borderRadius: 8, padding: "12px 14px", marginBottom: 10 }}><div style={{ fontSize: 9, color: C.gold, letterSpacing: 2, marginBottom: 5 }}>WHY NOT TAKEN / LESSON</div><div style={{ fontSize: 12, lineHeight: 1.7 }}>{backtest.reason}</div></div>}
       {backtest.notes && <div style={{ background: C.bg, borderRadius: 8, padding: "12px 14px", marginBottom: 14 }}><div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, marginBottom: 5 }}>ANALYSIS NOTES</div><div style={{ fontSize: 12, lineHeight: 1.7 }}>{backtest.notes}</div></div>}
       <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 14, marginBottom: 14 }}>
