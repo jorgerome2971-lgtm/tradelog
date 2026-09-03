@@ -571,37 +571,42 @@ function Compass({ trades, stats, patName, backtests, patternLib, aiResult, setA
   const runAI = async () => {
     if (!trades.length && !backtests.length && !patternLib.length) return;
     setAiLoading(true); setAiResult(null);
-    const prompt = `You are an expert forex trading coach. Analyze the trader's three data sources and respond ONLY with valid JSON (no markdown).
  
-Give a SEPARATE analysis for each source, then a COMBINED synthesis that connects all three. If a source has no data, say so briefly in its field. Be concrete and reference real numbers.
- 
-=== SOURCE 1: REAL TRADES ===
-STATS: ${JSON.stringify({ total: trades.length, wins: stats.wins, losses: stats.losses, winrate: stats.winrate, avgWin: stats.avgWin.toFixed(2), avgLoss: stats.avgLoss.toFixed(2), rr: stats.rr, totalPnl: stats.totalPnl.toFixed(2) })}
-TRADES: ${JSON.stringify(trades.map(t => ({ date: t.date, day: t.day, pair: t.pair, type: t.type, pattern: patName(t.patternId), session: t.session, emotion: t.emotion || "-", result: t.result, pnl: t.pnl, riskPct: t.riskPct })))}
- 
-=== SOURCE 2: BACKTESTING (setups studied / not taken live) ===
-BACKTESTS: ${JSON.stringify(backtests.map(b => ({ date: b.date, pair: b.pair, type: b.type, pattern: patName(b.patternId), result: b.result, pnl: b.pnl, reason: b.reason || "", notes: b.notes || "" })))}
- 
-=== SOURCE 3: PATTERNS LIBRARY (VALID / INVALID study cases) ===
-Rule legend: ${JSON.stringify(LIB_RULE_LABELS)}
-COMPUTED TALLIES: ${JSON.stringify(libStats)}
-CASES: ${JSON.stringify(patternLib.map(e => ({ pattern: e.pattern_type, direction: e.direction, pair: e.pair, verdict: e.verdict === "no_es" ? "INVALID" : "VALID", sub: e.sub_verdict, rules: e.rules, why: (e.description || "").slice(0, 160) })))}
- 
-For the library, call out which rule most often INVALIDATES a pattern, which pattern is most often invalid, and what tends to separate VALID from INVALID.
- 
-For "psychology": read the emotions logged across the trades and how the trader relates to winning and losing. Give a psychological read plus concrete, practical recommendations, framed through Buddhism and Taoism - non-attachment to outcome (the trade does not define the person), impermanence (anicca: each result arises and passes), wu wei (not forcing, flowing with the market), and the Taoist farmer parable (a single result cannot be judged in isolation). Apply these as real mental discipline for trading, soberly and specifically tied to this trader's own data - no empty mysticism, no generic platitudes.
- 
-Respond with this exact JSON shape:
-{"trades":"2-4 sentence analysis of real trades (or 'No real trades logged yet.')","backtest":"2-4 sentence analysis of backtesting (or 'No backtests logged yet.')","library":"3-5 sentence analysis of the pattern library with the rule/pattern call-outs (or 'No library cases yet.')","combined":"3-5 sentence synthesis connecting all three sources into one picture","psychology":"3-5 sentence psychological analysis and recommendations grounded in the trader's logged emotions, woven with Buddhism and Taoism as described","oneThingToFocusOn":"the single most important thing to work on next"}`;
-    try {
-      const res = await fetch("/.netlify/functions/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 1900, messages: [{ role: "user", content: prompt }] }) });
+    // one small AI call, returns plain text (no fragile JSON parsing per call)
+    const askAI = async (prompt, maxTokens = 450) => {
+      const res = await fetch("/.netlify/functions/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: maxTokens, messages: [{ role: "user", content: prompt }] }) });
+      if (!res.ok) throw new Error("status " + res.status);
       const data = await res.json();
-      const text = (data.content || []).map(b => b.text || "").join("");
-      const clean = text.replace(/```json/g, "").replace(/```/g, "").trim();
-      const jsonStart = clean.indexOf("{");
-      const jsonEnd = clean.lastIndexOf("}");
-      const jsonStr = clean.substring(jsonStart, jsonEnd + 1);
-      setAiResult(JSON.parse(jsonStr));
+      return (data.content || []).map(b => b.text || "").join("").trim();
+    };
+ 
+    // compact data payloads (kept small so each call finishes well under the timeout)
+    const statsData = JSON.stringify({ total: trades.length, wins: stats.wins, losses: stats.losses, winrate: stats.winrate, avgWin: stats.avgWin.toFixed(2), avgLoss: stats.avgLoss.toFixed(2), rr: stats.rr, totalPnl: stats.totalPnl.toFixed(2) });
+    const tradesData = JSON.stringify(trades.slice(-30).map(t => ({ pair: t.pair, type: t.type, pattern: patName(t.patternId), session: t.session, emotion: t.emotion || "-", result: t.result, pnl: t.pnl })));
+    const btData = JSON.stringify(backtests.slice(-20).map(b => ({ pair: b.pair, pattern: patName(b.patternId), result: b.result, pnl: b.pnl, reason: (b.reason || "").slice(0, 100) })));
+    const libData = JSON.stringify(patternLib.slice(-40).map(e => ({ pattern: e.pattern_type, pair: e.pair, verdict: e.verdict === "no_es" ? "INVALID" : "VALID", sub: e.sub_verdict, rules: e.rules, why: (e.description || "").slice(0, 120) })));
+    const emo = {};
+    trades.forEach(t => { const e = t.emotion || "unspecified"; if (!emo[e]) emo[e] = { w: 0, l: 0 }; if (t.result === "win") emo[e].w++; else if (t.result === "loss") emo[e].l++; });
+    const emoData = JSON.stringify({ byEmotion: emo, winrate: stats.winrate });
+    const overview = JSON.stringify({ trades: trades.length, backtests: backtests.length, libraryCases: patternLib.length, winrate: stats.winrate, rr: stats.rr, topInvalidatingRule: libStats.topInvalidatingRule });
+ 
+    const base = "You are an expert forex trading coach. Reply in English, plain text only, no markdown, no preamble. ";
+ 
+    const calls = {
+      trades: trades.length ? askAI(base + "In 2-4 sentences, analyze these real trades. STATS: " + statsData + " TRADES: " + tradesData) : Promise.resolve("No real trades logged yet."),
+      backtest: backtests.length ? askAI(base + "In 2-4 sentences, analyze this backtesting (setups studied, not taken live). DATA: " + btData) : Promise.resolve("No backtests logged yet."),
+      library: patternLib.length ? askAI(base + "In 3-5 sentences analyze this pattern library. Call out which rule most often INVALIDATES a pattern, which pattern is most often invalid, and what separates VALID from INVALID. RULE LEGEND: " + JSON.stringify(LIB_RULE_LABELS) + " TALLIES: " + JSON.stringify(libStats) + " CASES: " + libData, 550) : Promise.resolve("No library cases yet."),
+      psychology: (trades.length || patternLib.length) ? askAI(base + "In 3-5 sentences give a psychological read and concrete recommendations based on the trader's logged emotions and relationship to winning and losing, framed through Buddhism and Taoism: non-attachment to outcome (the trade does not define the person), impermanence/anicca (each result arises and passes), wu wei (not forcing, flowing with the market), and the Taoist farmer parable (a single result cannot be judged in isolation). Apply soberly and specifically to this data, no empty mysticism. DATA: " + emoData, 550) : Promise.resolve("Log trades with emotions to get a psychological read."),
+      combined: askAI(base + "In 3-5 sentences, synthesize the trader's whole picture across real trades, backtesting, and pattern library into one coherent read. OVERVIEW: " + overview),
+      oneThingToFocusOn: askAI(base + "In ONE sentence, state the single most important thing this trader should work on next. OVERVIEW: " + overview, 120),
+    };
+ 
+    try {
+      const keys = Object.keys(calls);
+      const settled = await Promise.all(keys.map(k => calls[k].catch(() => "(this section timed out — press AI Analysis again)")));
+      const out = {};
+      keys.forEach((k, i) => { out[k] = settled[i]; });
+      setAiResult(out);
     } catch (e) { setAiResult({ error: true }); }
     setAiLoading(false);
   };
