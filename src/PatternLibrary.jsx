@@ -175,6 +175,12 @@ export default function PatternLibrary({ supaUrl, supaKey }) {
           <Sel label="VERDICT" value={fVerdict} onChange={setFVerdict}
             options={[{ value: "si_es", label: "VALID" }, { value: "no_es", label: "INVALID" }]} placeholder="All" />
         </div>
+        <div style={{ marginBottom: 13 }}>
+          <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>SHOWING</div>
+          <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 22, color: C.accent, lineHeight: 1.2 }}>
+            {entries.length}<span style={{ fontSize: 12, color: C.muted }}> / {allEntries.length}</span>
+          </div>
+        </div>
         <div style={{ marginBottom: 13, marginLeft: "auto" }}>
           <Btn onClick={() => setModal({})}>+ Classify case</Btn>
         </div>
