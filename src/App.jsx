@@ -1488,8 +1488,57 @@ function Charts({ trades, accounts, acctName }) {
   }).join(" ");
   const lastPnl = pnlData[pnlData.length - 1]?.pnl || 0;
 
+  // --- RULE COMPLIANCE ANALYTICS (uses the X/8 saved per trade) ---
+  const recorded = trades.filter(t => (t.rules || []).length > 0);
+  const bucketOf = (n) => n === 8 ? "perfect" : n >= 6 ? "near" : "low";
+  const buckets = { perfect: { w: 0, l: 0, label: "8 / 8", color: C.green }, near: { w: 0, l: 0, label: "6-7 / 8", color: C.gold }, low: { w: 0, l: 0, label: "5 / 8 or less", color: C.red } };
+  recorded.forEach(t => { const b = buckets[bucketOf(t.rules.length)]; if (t.result === "win") b.w++; else if (t.result === "loss") b.l++; });
+  const wr = (w, l) => (w + l) === 0 ? null : Math.round(w / (w + l) * 100);
+  const brokenCount = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0 };
+  recorded.forEach(t => { for (let r = 1; r <= 8; r++) { if (!t.rules.includes(r)) brokenCount[r]++; } });
+  const brokenSorted = Object.entries(brokenCount).map(([r, c]) => ({ r: Number(r), c })).sort((a, b) => b.c - a.c);
+  const maxBroken = Math.max(...brokenSorted.map(x => x.c), 1);
+
   return (
     <div>
+      {/* WIN RATE BY RULE COMPLIANCE */}
+      <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18, marginBottom: 16 }}>
+        <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3, marginBottom: 14 }}>🎯 WIN RATE BY RULE COMPLIANCE</div>
+        {recorded.length === 0
+          ? <div style={{ fontSize: 12, color: C.dim, lineHeight: 1.6 }}>Mark the 8 rules on your trades to unlock this. It answers the key question: are your losses variance, or indiscipline?</div>
+          : <>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10 }}>
+              {["perfect", "near", "low"].map(k => { const b = buckets[k]; const rate = wr(b.w, b.l); return (
+                <div key={k} style={{ background: C.bg, border: `1px solid ${b.color}33`, borderRadius: 8, padding: "14px 12px", textAlign: "center" }}>
+                  <div style={{ fontSize: 9, color: b.color, letterSpacing: 2, marginBottom: 8 }}>{b.label}</div>
+                  <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 32, color: b.color }}>{rate === null ? "—" : rate + "%"}</div>
+                  <div style={{ fontSize: 10, color: C.dim, marginTop: 4 }}>{b.w}W / {b.l}L</div>
+                </div> ); })}
+            </div>
+            <div style={{ fontSize: 10, color: C.muted, marginTop: 12, lineHeight: 1.6 }}>Based on {recorded.length} trades with rules recorded. If 8/8 wins far more than the rest, your losses are mostly indiscipline — not bad luck.</div>
+          </>}
+      </div>
+
+      {/* MOST BROKEN RULES */}
+      <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18, marginBottom: 16 }}>
+        <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3, marginBottom: 14 }}>⚠️ MOST BROKEN RULES (real trades)</div>
+        {recorded.length === 0
+          ? <div style={{ fontSize: 12, color: C.dim }}>No rule data yet — mark the rules on your trades.</div>
+          : brokenSorted.every(x => x.c === 0)
+            ? <div style={{ fontSize: 12, color: C.green }}>Clean record — no rules broken in your recorded trades. ▲</div>
+            : brokenSorted.map(({ r, c }) => (
+              <div key={r} style={{ marginBottom: 10 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 4 }}>
+                  <span style={{ color: C.text }}>{TRADE_RULES[r]}</span>
+                  <span style={{ color: c > 0 ? C.red : C.dim, fontWeight: 700 }}>{c} {c === 1 ? "time" : "times"}</span>
+                </div>
+                <div style={{ background: C.border, borderRadius: 3, height: 6, overflow: "hidden" }}>
+                  <div style={{ width: `${c / maxBroken * 100}%`, height: "100%", background: C.red, borderRadius: 3 }} />
+                </div>
+              </div>
+            ))}
+      </div>
+
       {/* Cumulative P&L Chart */}
       <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18, marginBottom: 16 }}>
         <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3, marginBottom: 14 }}>📈 CUMULATIVE P&L</div>
