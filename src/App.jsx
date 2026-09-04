@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import PatternLibrary from "./PatternLibrary";
 import StudyLinks from "./StudyLinks";
+import Firms from "./Firms";
 
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
 const fmt = (n) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", signDisplay: "exceptZero" }).format(n || 0);
@@ -278,6 +279,7 @@ export default function App() {
     { id: "withdrawals", icon: "💸", label: "Withdrawals" },
     { id: "library", icon: "📚", label: "Patterns Library" },
     { id: "links", icon: "🔗", label: "Study Links" },
+    { id: "firms", icon: "🏢", label: "My Firms" },
   ];
 
   return (
@@ -312,7 +314,7 @@ export default function App() {
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 26px", borderBottom: `1px solid ${C.border}`, background: C.panel, flexShrink: 0 }}>
           <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 20, letterSpacing: 3 }}>
-            {{ dashboard: "DASHBOARD", trades: "TRADE LOG", patterns: "PATTERNS", pairs: "MY PAIRS", charts: "CHARTS", backtest: "BACKTESTING", rounds: "FIGHT ROUNDS", compass: "AI COMPASS", accounts: "ACCOUNTS", withdrawals: "WITHDRAWALS", library: "PATTERNS LIBRARY", links: "STUDY LINKS" }[tab]}
+            {{ dashboard: "DASHBOARD", trades: "TRADE LOG", patterns: "PATTERNS", pairs: "MY PAIRS", charts: "CHARTS", backtest: "BACKTESTING", rounds: "FIGHT ROUNDS", compass: "AI COMPASS", accounts: "ACCOUNTS", withdrawals: "WITHDRAWALS", library: "PATTERNS LIBRARY", links: "STUDY LINKS", firms: "MY FIRMS" }[tab]}
           </div>
           <div style={{ display: "flex", gap: 10 }}>
             {tab === "accounts" && <Btn onClick={() => setModal({ type: "account" })}>+ Account</Btn>}
@@ -341,6 +343,7 @@ export default function App() {
           {tab === "withdrawals" && <WithdrawalLog withdrawals={withdrawals} accounts={accounts} acctName={acctName} trades={trades} onEdit={id => setModal({ type: "withdrawal", id })} />}
           {tab === "library" && <PatternLibrary supaUrl={SUPA_URL} supaKey={SUPA_KEY} />}
           {tab === "links" && <StudyLinks supaUrl={SUPA_URL} supaKey={SUPA_KEY} />}
+          {tab === "firms" && <Firms supaUrl={SUPA_URL} supaKey={SUPA_KEY} />}
         </div>
       </div>
 
