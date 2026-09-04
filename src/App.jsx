@@ -24,6 +24,7 @@ const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov
 const css = `
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&family=Bebas+Neue&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { zoom: 1.15; }
   @keyframes spin { to { transform: rotate(360deg); } }
   @keyframes fadein { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
   .fadein { animation: fadein .2s ease; }
