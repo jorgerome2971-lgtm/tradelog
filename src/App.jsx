@@ -267,15 +267,15 @@ export default function App() {
   );
 
   const navItems = [
-    { id: "dashboard", icon: "▦", label: "Dashboard" },
-    { id: "trades", icon: "⟳", label: "Trades" },
-    { id: "patterns", icon: "◈", label: "Patterns" },
-    { id: "pairs", icon: "◎", label: "Pairs" },
-    { id: "charts", icon: "▲", label: "Charts" },
-    { id: "backtest", icon: "◐", label: "Backtesting" },
+    { id: "dashboard", icon: "📊", label: "Dashboard" },
+    { id: "trades", icon: "📈", label: "Trades" },
+    { id: "patterns", icon: "🔷", label: "Patterns" },
+    { id: "pairs", icon: "💱", label: "Pairs" },
+    { id: "charts", icon: "📉", label: "Charts" },
+    { id: "backtest", icon: "🔬", label: "Backtesting" },
     { id: "rounds", icon: "🥊", label: "Fight Rounds" },
-    { id: "compass", icon: "⊕", label: "AI Compass" },
-    { id: "accounts", icon: "▣", label: "Accounts" },
+    { id: "compass", icon: "🧭", label: "AI Compass" },
+    { id: "accounts", icon: "💼", label: "Accounts" },
     { id: "withdrawals", icon: "💸", label: "Withdrawals" },
     { id: "library", icon: "📚", label: "Patterns Library" },
     { id: "links", icon: "🔗", label: "Study Links" },
@@ -287,7 +287,7 @@ export default function App() {
       <style>{css}</style>
 
       {/* SIDEBAR */}
-      <aside style={{ width: 210, background: C.panel, borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column", flexShrink: 0 }}>
+      <aside style={{ width: 230, background: C.panel, borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column", flexShrink: 0 }}>
         <div style={{ padding: "22px 20px 18px", borderBottom: `1px solid ${C.border}` }}>
           <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 24, letterSpacing: 3 }}>TRADE<span style={{ color: C.accent }}>LOG</span></div>
           <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3, marginTop: 2 }}>FOREX JOURNAL</div>
@@ -296,8 +296,8 @@ export default function App() {
         <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3, padding: "16px 20px 6px" }}>MENU</div>
         {navItems.map(n => (
           <button key={n.id} onClick={() => setTab(n.id)}
-            style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 20px", background: tab === n.id ? `rgba(0,201,255,0.07)` : "transparent", border: "none", borderRight: tab === n.id ? `3px solid ${C.accent}` : "3px solid transparent", color: tab === n.id ? C.text : C.muted, fontSize: 12, letterSpacing: 1, cursor: "pointer", width: "100%", textAlign: "left" }}>
-            <span style={{ fontSize: 14, width: 18, textAlign: "center" }}>{n.icon}</span>{n.label}
+            style={{ display: "flex", alignItems: "center", gap: 11, padding: "13px 20px", background: tab === n.id ? `rgba(0,201,255,0.07)` : "transparent", border: "none", borderRight: tab === n.id ? `3px solid ${C.accent}` : "3px solid transparent", color: tab === n.id ? C.text : C.muted, fontSize: 14, letterSpacing: 1, cursor: "pointer", width: "100%", textAlign: "left" }}>
+            <span style={{ fontSize: 17, width: 22, textAlign: "center" }}>{n.icon}</span>{n.label}
           </button>
         ))}
 
