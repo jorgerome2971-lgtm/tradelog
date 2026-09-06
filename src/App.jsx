@@ -139,6 +139,9 @@ export default function App() {
     a: { name: "TABLE A", values: [500,800,500,500,500,500,500,500,500,500,500,500], results: Array(12).fill(null) },
     b: { name: "TABLE B", values: [500,500,1000,1000,500,500,500,500,500,500,500,500], results: Array(12).fill(null) },
     c: { name: "TABLE C", values: [500,1000,1500,2000,500,1500,1000,1000,500,500,2000,500], results: Array(12).fill(null) },
+    d: { name: "TABLE D", values: [500,500,500,500,500,500,500,500,500,500,500,500], results: Array(12).fill(null) },
+    e: { name: "TABLE E", values: [500,500,500,500,500,500,500,500,500,500,500,500], results: Array(12).fill(null) },
+    f: { name: "TABLE F", values: [500,500,500,500,500,500,500,500,500,500,500,500], results: Array(12).fill(null) },
   };
 
   useEffect(() => {
@@ -153,7 +156,7 @@ export default function App() {
         if (Array.isArray(wd)) setWithdrawals(wd.map(r => ({id:r.id, accountId:r.account_id, date:r.date, amount:parseFloat(r.amount)||0, myPct:r.my_pct||"", firmPct:r.firm_pct||"", notes:r.notes||""})));
         if (Array.isArray(pl)) setPatternLib(pl);
       } catch (e) { setSaveStatus("⚠ Connection error"); }
-      try { const saved = localStorage.getItem("tradelog:roundtables"); setRoundTables(saved ? JSON.parse(saved) : DEFAULT_ROUND_TABLES); } catch { setRoundTables(DEFAULT_ROUND_TABLES); }
+      try { const saved = localStorage.getItem("tradelog:roundtables"); const parsed = saved ? JSON.parse(saved) : {}; setRoundTables({ ...DEFAULT_ROUND_TABLES, ...parsed }); } catch { setRoundTables(DEFAULT_ROUND_TABLES); }
       setLoading(false);
     };
     load();
