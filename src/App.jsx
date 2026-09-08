@@ -8,9 +8,9 @@ const fmt = (n) => new Intl.NumberFormat("en-US", { style: "currency", currency:
 const pct = (a, b) => b === 0 ? "—" : ((a / b) * 100).toFixed(1) + "%";
 
 const C = {
-  bg: "#070a0f", panel: "#0d1219", panel2: "#111827", border: "#1e2d3d",
-  accent: "#00c9ff", gold: "#f0b429", green: "#10d98a", red: "#f63b3b",
-  muted: "#3a5068", text: "#cfe4f5", dim: "#607d94",
+  bg: "#0a0a0a", panel: "#141414", panel2: "#1c1c1c", border: "#2a2a2a",
+  accent: "#c6f531", gold: "#f0b429", green: "#10d98a", red: "#f63b3b",
+  muted: "#5a5a5a", text: "#e8e8e8", dim: "#808080",
 };
 
 const PAIRS = ["EUR/USD","GBP/USD","USD/JPY","USD/CHF","AUD/USD","NZD/USD","USD/CAD","EUR/GBP","EUR/JPY","GBP/JPY","XAU/USD","US30","NAS100","SPX500","Other"];
@@ -22,15 +22,16 @@ const CURRENCIES = ["USD","EUR","GBP","MXN"];
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 const css = `
-  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&family=Bebas+Neue&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Bebas+Neue&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html { zoom: 1.15; }
   @keyframes spin { to { transform: rotate(360deg); } }
   @keyframes fadein { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
   .fadein { animation: fadein .2s ease; }
-  ::-webkit-scrollbar { width: 4px; background: #070a0f; }
-  ::-webkit-scrollbar-thumb { background: #1e2d3d; border-radius: 4px; }
-  input, select, textarea { outline: none; }
+  ::-webkit-scrollbar { width: 4px; background: #0a0a0a; }
+  ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 4px; }
+  input, select, textarea { outline: none; font-family: 'Inter', sans-serif; }
+  body { font-family: 'Inter', sans-serif; }
 `;
 
 function Inp({ label, value, onChange, type = "text", placeholder = "" }) {
@@ -38,7 +39,7 @@ function Inp({ label, value, onChange, type = "text", placeholder = "" }) {
     <div style={{ marginBottom: 13 }}>
       <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>{label}</div>
       <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-        style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "IBM Plex Mono, monospace" }} />
+        style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "Inter, sans-serif" }} />
     </div>
   );
 }
@@ -48,7 +49,7 @@ function Sel({ label, value, onChange, options, placeholder = "—" }) {
     <div style={{ marginBottom: 13 }}>
       <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>{label}</div>
       <select value={value} onChange={e => onChange(e.target.value)}
-        style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "IBM Plex Mono, monospace" }}>
+        style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "Inter, sans-serif" }}>
         <option value="">{placeholder}</option>
         {options.map(o => typeof o === "string"
           ? <option key={o} value={o}>{o}</option>
@@ -63,7 +64,7 @@ function Btn({ children, onClick, color = C.accent, ghost = false, danger = fals
   const col = danger ? "#fff" : ghost ? color : "#000";
   return (
     <button onClick={onClick} disabled={disabled}
-      style={{ padding: small ? "6px 12px" : "9px 18px", background: bg, color: col, border: ghost ? `1px solid ${color}44` : "none", borderRadius: 4, fontSize: small ? 10 : 11, fontWeight: 700, letterSpacing: 2, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.6 : 1, width: full ? "100%" : "auto", fontFamily: "IBM Plex Mono, monospace" }}>
+      style={{ padding: small ? "6px 12px" : "9px 18px", background: bg, color: col, border: ghost ? `1px solid ${color}44` : "none", borderRadius: 4, fontSize: small ? 10 : 11, fontWeight: 700, letterSpacing: 2, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.6 : 1, width: full ? "100%" : "auto", fontFamily: "Inter, sans-serif" }}>
       {children}
     </button>
   );
@@ -277,7 +278,7 @@ export default function App() {
   const patName = id => (patterns.find(p => p.id === id) || {}).name || "—";
 
   if (loading) return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", background: C.bg, flexDirection: "column", gap: 14, fontFamily: "IBM Plex Mono, monospace" }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", background: C.bg, flexDirection: "column", gap: 14, fontFamily: "Inter, sans-serif" }}>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       <div style={{ width: 40, height: 40, border: `3px solid ${C.border}`, borderTopColor: C.accent, borderRadius: "50%", animation: "spin .9s linear infinite" }} />
       <div style={{ color: C.accent, fontSize: 11, letterSpacing: 3 }}>LOADING YOUR DATA...</div>
@@ -301,7 +302,7 @@ export default function App() {
   ];
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", background: C.bg, color: C.text, fontFamily: "IBM Plex Mono, monospace" }}>
+    <div style={{ display: "flex", minHeight: "100vh", background: C.bg, color: C.text, fontFamily: "Inter, sans-serif" }}>
       <style>{css}</style>
 
       {/* SIDEBAR */}
@@ -314,7 +315,7 @@ export default function App() {
         <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3, padding: "16px 20px 6px" }}>MENU</div>
         {navItems.map(n => (
           <button key={n.id} onClick={() => setTab(n.id)}
-            style={{ display: "flex", alignItems: "center", gap: 11, padding: "13px 20px", background: tab === n.id ? `rgba(0,201,255,0.07)` : "transparent", border: "none", borderRight: tab === n.id ? `3px solid ${C.accent}` : "3px solid transparent", color: tab === n.id ? C.text : C.muted, fontSize: 14, letterSpacing: 1, cursor: "pointer", width: "100%", textAlign: "left" }}>
+            style={{ display: "flex", alignItems: "center", gap: 11, padding: "13px 20px", background: tab === n.id ? `rgba(198,245,49,0.10)` : "transparent", border: "none", borderRight: tab === n.id ? `3px solid ${C.accent}` : "3px solid transparent", color: tab === n.id ? C.text : C.muted, fontSize: 14, letterSpacing: 1, cursor: "pointer", width: "100%", textAlign: "left" }}>
             <span style={{ fontSize: 17, width: 22, textAlign: "center" }}>{n.icon}</span>{n.label}
           </button>
         ))}
@@ -738,7 +739,7 @@ function PairModal({ pair, onClose, onSave, onDelete }) {
         <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>NOTES (optional)</div>
         <textarea value={description} onChange={e => setDescription(e.target.value)}
           placeholder="e.g. Best during London session, high volatility..."
-          rows={3} style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "IBM Plex Mono, monospace", resize: "vertical" }} />
+          rows={3} style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "Inter, sans-serif", resize: "vertical" }} />
       </div>
       <div style={{ display: "flex", gap: 10 }}>
         <Btn onClick={save} full>Save Pair</Btn>
@@ -816,7 +817,7 @@ function TA({ label, value, onChange, placeholder, rows, color }) {
     <div style={{ marginBottom: 13 }}>
       <div style={{ fontSize: 9, color: color || C.dim, letterSpacing: 2, marginBottom: 5 }}>{label}</div>
       <textarea value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} rows={rows || 3}
-        style={{ width: "100%", background: C.bg, border: `1px solid ${color ? color + "44" : C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "IBM Plex Mono, monospace", resize: "vertical" }} />
+        style={{ width: "100%", background: C.bg, border: `1px solid ${color ? color + "44" : C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "Inter, sans-serif", resize: "vertical" }} />
     </div>
   );
 }
@@ -917,7 +918,7 @@ JSON: {"message":"2-3 sentences of direct coaching based on this result and thei
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
           {accounts.map(a => (
             <div key={a.id} onClick={() => !t.id && toggleAccount(a.id)}
-              style={{ padding: "7px 14px", borderRadius: 6, border: `1px solid ${selectedAccountIds.includes(a.id) ? C.accent : C.border}`, background: selectedAccountIds.includes(a.id) ? `${C.accent}15` : C.bg, color: selectedAccountIds.includes(a.id) ? C.accent : C.dim, fontSize: 12, cursor: t.id ? "default" : "pointer", transition: "all .15s", fontFamily: "IBM Plex Mono, monospace" }}>
+              style={{ padding: "7px 14px", borderRadius: 6, border: `1px solid ${selectedAccountIds.includes(a.id) ? C.accent : C.border}`, background: selectedAccountIds.includes(a.id) ? `${C.accent}15` : C.bg, color: selectedAccountIds.includes(a.id) ? C.accent : C.dim, fontSize: 12, cursor: t.id ? "default" : "pointer", transition: "all .15s", fontFamily: "Inter, sans-serif" }}>
               {selectedAccountIds.includes(a.id) ? "✓ " : ""}{a.name}
             </div>
           ))}
@@ -929,7 +930,7 @@ JSON: {"message":"2-3 sentences of direct coaching based on this result and thei
       <div style={{ marginBottom: 13 }}>
         <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>DATE</div>
         <input type="date" value={date} onChange={e => setDate(e.target.value)}
-          style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "IBM Plex Mono, monospace" }} />
+          style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "Inter, sans-serif" }} />
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
         <Sel label="DAY" value={day} onChange={setDay} options={DAYS} />
@@ -940,7 +941,7 @@ JSON: {"message":"2-3 sentences of direct coaching based on this result and thei
         <div style={{ marginBottom: 13 }}>
           <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>PAIR</div>
           <select value={pair} onChange={e => setPair(e.target.value)}
-            style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "IBM Plex Mono, monospace" }}>
+            style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "Inter, sans-serif" }}>
             <option value="">Select pair...</option>
             {pairs && pairs.length > 0
               ? pairs.map(p => <option key={p.id} value={p.symbol}>{p.symbol}</option>)
@@ -972,7 +973,7 @@ JSON: {"message":"2-3 sentences of direct coaching based on this result and thei
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
           {[1,2,3,4,5,6,7,8].map(r => (
             <button key={r} onClick={() => toggleRule(r)} title={TRADE_RULES[r]}
-              style={{ padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontSize: 11, fontWeight: 700, fontFamily: "IBM Plex Mono, monospace",
+              style={{ padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontSize: 11, fontWeight: 700, fontFamily: "Inter, sans-serif",
                        border: `1px solid ${rules.includes(r) ? C.gold : C.border}`,
                        background: rules.includes(r) ? `${C.gold}22` : C.bg,
                        color: rules.includes(r) ? C.gold : C.dim }}>
@@ -998,7 +999,7 @@ JSON: {"message":"2-3 sentences of direct coaching based on this result and thei
         <div style={{ marginBottom: 13 }}>
           <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>RESULT</div>
           <select value={result} onChange={e => handleResultChange(e.target.value)}
-            style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "IBM Plex Mono, monospace" }}>
+            style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "Inter, sans-serif" }}>
             {["pending","win","loss","breakeven"].map(r => <option key={r} value={r}>{r.charAt(0).toUpperCase()+r.slice(1)}</option>)}
           </select>
         </div>
@@ -1050,12 +1051,12 @@ function PatternModal({ pattern, onClose, onSave, onDelete }) {
       <div style={{ marginBottom: 13 }}>
         <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>DESCRIPTION</div>
         <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="What conditions must be met?" rows={3}
-          style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "IBM Plex Mono, monospace", resize: "vertical" }} />
+          style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "Inter, sans-serif", resize: "vertical" }} />
       </div>
       <div style={{ marginBottom: 13 }}>
         <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>ENTRY RULES</div>
         <textarea value={rules} onChange={e => setRules(e.target.value)} placeholder={"1. Price above EMA 20\n2. Structure break\n3. Candle confirmation..."} rows={5}
-          style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "IBM Plex Mono, monospace", resize: "vertical" }} />
+          style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "Inter, sans-serif", resize: "vertical" }} />
       </div>
       <Inp label="CONFIRMATIONS NEEDED" value={confirmations} onChange={setConfirmations} placeholder="RSI + structure + volume" />
       <Inp label="REFERENCE CHART LINK" value={imageLink} onChange={setImageLink} placeholder="https://..." />
@@ -1347,7 +1348,7 @@ function WithdrawalModal({ withdrawal, accounts, onClose, onSave, onDelete }) {
           {firmAmt && <div style={{ fontSize: 13, color: C.gold }}>Firm share: <strong>{fmt(parseFloat(firmAmt))}</strong></div>}
         </div>
       )}
-      <div style={{ marginBottom: 13 }}><div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>NOTES (optional)</div><textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Monthly withdrawal, payout #3..." rows={2} style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "IBM Plex Mono, monospace", resize: "vertical" }} /></div>
+      <div style={{ marginBottom: 13 }}><div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>NOTES (optional)</div><textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Monthly withdrawal, payout #3..." rows={2} style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "Inter, sans-serif", resize: "vertical" }} /></div>
       <div style={{ display: "flex", gap: 10 }}><Btn onClick={save} full>Save Withdrawal</Btn>{w.id && <Btn danger onClick={() => { if (confirm("Delete?")) onDelete(w.id); }}>Delete</Btn>}</div>
     </Modal>
   );
@@ -1796,7 +1797,7 @@ function BacktestModal({ backtest, patterns, pairs, onClose, onSave, onDelete })
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <div style={{ marginBottom: 13 }}>
           <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>PAIR</div>
-          <select value={pair} onChange={e => setPair(e.target.value)} style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "IBM Plex Mono, monospace" }}>
+          <select value={pair} onChange={e => setPair(e.target.value)} style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "Inter, sans-serif" }}>
             <option value="">Select pair...</option>
             {pairs.length > 0 ? pairs.map(p => <option key={p.id} value={p.symbol}>{p.symbol}</option>) : PAIRS.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
@@ -1820,7 +1821,7 @@ function BacktestModal({ backtest, patterns, pairs, onClose, onSave, onDelete })
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
           {[1,2,3,4,5,6,7,8].map(r => (
             <button key={r} onClick={() => toggleRule(r)} title={TRADE_RULES[r]}
-              style={{ padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontSize: 11, fontWeight: 700, fontFamily: "IBM Plex Mono, monospace",
+              style={{ padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontSize: 11, fontWeight: 700, fontFamily: "Inter, sans-serif",
                        border: `1px solid ${rules.includes(r) ? C.gold : C.border}`,
                        background: rules.includes(r) ? `${C.gold}22` : C.bg,
                        color: rules.includes(r) ? C.gold : C.dim }}>
@@ -1831,11 +1832,11 @@ function BacktestModal({ backtest, patterns, pairs, onClose, onSave, onDelete })
       </div>
       <div style={{ marginBottom: 13 }}>
         <div style={{ fontSize: 9, color: C.gold, letterSpacing: 2, marginBottom: 5 }}>WHY DIDN'T YOU TAKE IT? (or what did you learn?)</div>
-        <textarea value={reason} onChange={e => setReason(e.target.value)} placeholder="Was too late to enter? Didn't trust the setup? Missed the entry? What would you do differently?" rows={3} style={{ width: "100%", background: C.bg, border: `1px solid ${C.gold}44`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "IBM Plex Mono, monospace", resize: "vertical" }} />
+        <textarea value={reason} onChange={e => setReason(e.target.value)} placeholder="Was too late to enter? Didn't trust the setup? Missed the entry? What would you do differently?" rows={3} style={{ width: "100%", background: C.bg, border: `1px solid ${C.gold}44`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "Inter, sans-serif", resize: "vertical" }} />
       </div>
       <div style={{ marginBottom: 13 }}>
         <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>ANALYSIS NOTES</div>
-        <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="What did you observe? What worked in theory?" rows={3} style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "IBM Plex Mono, monospace", resize: "vertical" }} />
+        <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="What did you observe? What worked in theory?" rows={3} style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "Inter, sans-serif", resize: "vertical" }} />
       </div>
       <div style={{ display: "flex", gap: 10 }}><Btn onClick={save} full>Save Backtest</Btn>{b.id && <Btn danger onClick={() => { if (confirm("Delete?")) onDelete(b.id); }}>Delete</Btn>}</div>
     </Modal>
