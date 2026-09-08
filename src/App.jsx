@@ -309,21 +309,21 @@ export default function App() {
       <aside style={{ width: 230, background: C.panel, borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column", flexShrink: 0 }}>
         <div style={{ padding: "22px 20px 18px", borderBottom: `1px solid ${C.border}` }}>
           <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 24, letterSpacing: 3, lineHeight: 1.05 }}>THE FOREX<br /><span style={{ color: C.accent }}>WORLD</span></div>
-          <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3, marginTop: 4 }}>TRADING JOURNAL</div>
+          <div style={{ fontSize: 9, color: C.text, letterSpacing: 3, marginTop: 4 }}>TRADING JOURNAL</div>
         </div>
 
-        <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3, padding: "16px 20px 6px" }}>MENU</div>
+        <div style={{ fontSize: 9, color: C.text, letterSpacing: 3, padding: "16px 20px 6px" }}>MENU</div>
         {navItems.map(n => (
           <button key={n.id} onClick={() => setTab(n.id)}
-            style={{ display: "flex", alignItems: "center", gap: 11, padding: "13px 20px", background: tab === n.id ? `rgba(198,245,49,0.10)` : "transparent", border: "none", borderRight: tab === n.id ? `3px solid ${C.accent}` : "3px solid transparent", color: tab === n.id ? C.text : C.muted, fontSize: 14, letterSpacing: 1, cursor: "pointer", width: "100%", textAlign: "left" }}>
+            style={{ display: "flex", alignItems: "center", gap: 11, padding: "13px 20px", background: tab === n.id ? `rgba(198,245,49,0.10)` : "transparent", border: "none", borderRight: tab === n.id ? `3px solid ${C.accent}` : "3px solid transparent", color: C.text, fontSize: 14, letterSpacing: 1, cursor: "pointer", width: "100%", textAlign: "left" }}>
             <span style={{ fontSize: 17, width: 22, textAlign: "center" }}>{n.icon}</span>{n.label}
           </button>
         ))}
 
         <div style={{ marginTop: "auto", padding: 16, borderTop: `1px solid ${C.border}` }}>
-          <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3, marginBottom: 6 }}>TOTAL P&L</div>
+          <div style={{ fontSize: 9, color: C.text, letterSpacing: 3, marginBottom: 6 }}>TOTAL P&L</div>
           <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 26, color: stats.netPnl >= 0 ? C.green : C.red }}>{fmt(stats.netPnl)}</div>
-          <div style={{ fontSize: 10, color: C.muted, marginTop: 4 }}>{stats.total} trades · {stats.winrate} WR</div>
+          <div style={{ fontSize: 10, color: C.text, marginTop: 4 }}>{stats.total} trades · {stats.winrate} WR</div>
           {stats.totalWithdrawals > 0 && <div style={{ fontSize: 10, color: C.gold, marginTop: 3 }}>💸 {fmt(stats.totalWithdrawals)} withdrawn</div>}
           {saveStatus && <div style={{ fontSize: 10, color: C.accent, marginTop: 10, letterSpacing: 1 }}>{saveStatus}</div>}
         </div>
@@ -1667,7 +1667,7 @@ function Charts({ trades, accounts, acctName }) {
             {total > 0 && <>
               <div style={{ width: `${wins/total*100}%`, background: C.green }} />
               <div style={{ width: `${losses/total*100}%`, background: C.red }} />
-              <div style={{ width: `${bes/total*100}%`, background: C.muted }} />
+              <div style={{ width: `${bes/total*100}%`, background: "#5a5a5a" }} />
             </>}
           </div>
         </div>
