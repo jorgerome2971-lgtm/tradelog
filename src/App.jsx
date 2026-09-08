@@ -9,7 +9,7 @@ const pct = (a, b) => b === 0 ? "—" : ((a / b) * 100).toFixed(1) + "%";
 
 const C = {
   bg: "#0a0a0a", panel: "#141414", panel2: "#1c1c1c", border: "#2a2a2a",
-  accent: "#c6f531", gold: "#f0b429", green: "#10d98a", red: "#f63b3b",
+  accent: "#c6f531", gold: "#f0b429", green: "#c6f531", red: "#f63b3b",
   muted: "#5a5a5a", text: "#e8e8e8", dim: "#808080",
 };
 
