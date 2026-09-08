@@ -11,9 +11,9 @@ import { useState, useEffect } from "react";
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
 
 const C = {
-  bg: "#070a0f", panel: "#0d1219", panel2: "#111827", border: "#1e2d3d",
-  accent: "#00c9ff", gold: "#f0b429", green: "#10d98a", red: "#f63b3b",
-  muted: "#3a5068", text: "#cfe4f5", dim: "#607d94",
+  bg: "#0a0a0a", panel: "#141414", panel2: "#1c1c1c", border: "#2a2a2a",
+  accent: "#c6f531", gold: "#f0b429", green: "#c6f531", red: "#f63b3b",
+  muted: "#5a5a5a", text: "#e8e8e8", dim: "#808080",
 };
 
 const LINK_CATEGORIES = ["Motivation", "Study", "Strategy", "My Recordings", "Podcast", "Other"];
@@ -23,7 +23,7 @@ function Inp({ label, value, onChange, type = "text", placeholder = "" }) {
     <div style={{ marginBottom: 13 }}>
       <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>{label}</div>
       <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-        style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "IBM Plex Mono, monospace" }} />
+        style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "Inter, sans-serif" }} />
     </div>
   );
 }
@@ -33,7 +33,7 @@ function Sel({ label, value, onChange, options, placeholder = "-" }) {
     <div style={{ marginBottom: 13 }}>
       <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>{label}</div>
       <select value={value} onChange={e => onChange(e.target.value)}
-        style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "IBM Plex Mono, monospace" }}>
+        style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "Inter, sans-serif" }}>
         <option value="">{placeholder}</option>
         {options.map(o => <option key={o} value={o}>{o}</option>)}
       </select>
@@ -46,7 +46,7 @@ function Btn({ children, onClick, color = C.accent, ghost = false, danger = fals
   const col = danger ? "#fff" : ghost ? color : "#000";
   return (
     <button onClick={onClick} disabled={disabled}
-      style={{ padding: small ? "6px 12px" : "9px 18px", background: bg, color: col, border: ghost ? `1px solid ${color}44` : "none", borderRadius: 4, fontSize: small ? 10 : 11, fontWeight: 700, letterSpacing: 2, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.6 : 1, width: full ? "100%" : "auto", fontFamily: "IBM Plex Mono, monospace" }}>
+      style={{ padding: small ? "6px 12px" : "9px 18px", background: bg, color: col, border: ghost ? `1px solid ${color}44` : "none", borderRadius: 4, fontSize: small ? 10 : 11, fontWeight: 700, letterSpacing: 2, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.6 : 1, width: full ? "100%" : "auto", fontFamily: "Inter, sans-serif" }}>
       {children}
     </button>
   );
@@ -84,7 +84,7 @@ function TA({ label, value, onChange, placeholder, rows }) {
     <div style={{ marginBottom: 13 }}>
       <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>{label}</div>
       <textarea value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} rows={rows || 2}
-        style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "IBM Plex Mono, monospace", resize: "vertical" }} />
+        style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "Inter, sans-serif", resize: "vertical" }} />
     </div>
   );
 }
