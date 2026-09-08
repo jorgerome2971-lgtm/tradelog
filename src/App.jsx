@@ -156,7 +156,19 @@ export default function App() {
         if (Array.isArray(wd)) setWithdrawals(wd.map(r => ({id:r.id, accountId:r.account_id, date:r.date, amount:parseFloat(r.amount)||0, myPct:r.my_pct||"", firmPct:r.firm_pct||"", notes:r.notes||""})));
         if (Array.isArray(pl)) setPatternLib(pl);
       } catch (e) { setSaveStatus("⚠ Connection error"); }
-      try { const saved = localStorage.getItem("tradelog:roundtables"); const parsed = saved ? JSON.parse(saved) : {}; setRoundTables({ ...DEFAULT_ROUND_TABLES, ...parsed }); } catch { setRoundTables(DEFAULT_ROUND_TABLES); }
+      try {
+        const rt = await dbGet("round_tables").catch(() => []);
+        const row = Array.isArray(rt) ? rt.find(x => x.id === "main") : null;
+        if (row && row.data) {
+          setRoundTables({ ...DEFAULT_ROUND_TABLES, ...row.data });
+        } else {
+          let local = {};
+          try { const saved = localStorage.getItem("tradelog:roundtables"); local = saved ? JSON.parse(saved) : {}; } catch {}
+          const merged = { ...DEFAULT_ROUND_TABLES, ...local };
+          setRoundTables(merged);
+          if (Object.keys(local).length) { try { await dbUpsert("round_tables", [{ id: "main", data: merged }]); } catch {} }
+        }
+      } catch { setRoundTables(DEFAULT_ROUND_TABLES); }
       setLoading(false);
     };
     load();
@@ -239,9 +251,11 @@ export default function App() {
     setTimeout(() => setSaveStatus(""), 2000);
   };
 
-  const saveRoundTables = (data) => {
+  const saveRoundTables = async (data) => {
     setRoundTables(data);
-    try { localStorage.setItem("tradelog:roundtables", JSON.stringify(data)); } catch {}
+    setSaveStatus("Saving...");
+    try { await dbUpsert("round_tables", [{ id: "main", data }]); setSaveStatus("✓ Saved"); }
+    catch { setSaveStatus("⚠ Connection error"); }
   };
 
   const close = () => setModal(null);
