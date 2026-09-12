@@ -308,7 +308,7 @@ export default function App() {
       {/* SIDEBAR */}
       <aside style={{ width: 230, background: C.panel, borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column", flexShrink: 0 }}>
         <div style={{ padding: "22px 20px 18px", borderBottom: `1px solid ${C.border}` }}>
-          <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 24, letterSpacing: 3, lineHeight: 1.05 }}>THE FOREX<br /><span style={{ color: C.accent }}>WORLD</span></div>
+          <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 24, letterSpacing: 2, lineHeight: 1.05 }}>THE UNKNOWN<br /><span style={{ color: C.accent }}>SOFTWARE</span></div>
           <div style={{ fontSize: 9, color: C.text, letterSpacing: 3, marginTop: 4 }}>TRADING JOURNAL</div>
         </div>
 
