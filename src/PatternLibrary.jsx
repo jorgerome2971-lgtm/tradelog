@@ -131,6 +131,9 @@ export default function PatternLibrary({ supaUrl, supaKey }) {
   const [fPair, setFPair] = useState("");
   const [modal, setModal] = useState(null);
   const [detail, setDetail] = useState(null);
+  const [aiQ, setAiQ] = useState("");
+  const [aiSearching, setAiSearching] = useState(false);
+  const [aiRes, setAiRes] = useState(null);
 
   const H = { apikey: supaKey, Authorization: `Bearer ${supaKey}`, "Content-Type": "application/json" };
 
@@ -161,6 +164,24 @@ export default function PatternLibrary({ supaUrl, supaKey }) {
     (!fPair || e.pair === fPair)
   );
 
+  const runAISearch = async () => {
+    const q = aiQ.trim();
+    if (!q || !allEntries.length) return;
+    setAiSearching(true); setAiRes(null);
+    try {
+      const lib = allEntries.map((e, i) => ({ i, pattern: e.pattern_type, pair: e.pair, verdict: e.verdict === "no_es" ? "INVALID" : "VALID", sub: e.sub_verdict, dir: e.direction, tf: e.timeframe, rules: e.rules, why: (e.description || "").slice(0, 200) }));
+      const prompt = "You are a forex chart-pattern librarian with full access to the trader's own saved library of classified cases. Each case has an index i. Answer the trader's question in English about their library: which cases fit, what they share, what the data shows. Reply ONLY with valid JSON, no markdown, no preamble, in this exact shape: {\"answer\": \"2-5 sentence plain-text answer\", \"matches\": [i, i, ...]} where matches lists the indices of the cases relevant to the question (empty array if none fit). LIBRARY: " + JSON.stringify(lib) + " QUESTION: " + q;
+      const res = await fetch("/.netlify/functions/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 900, messages: [{ role: "user", content: prompt }] }) });
+      if (!res.ok) throw new Error("status " + res.status);
+      const data = await res.json();
+      let txt = (data.content || []).map(b => b.text || "").join("").trim().replace(/```json|```/g, "").trim();
+      const parsed = JSON.parse(txt.substring(txt.indexOf("{"), txt.lastIndexOf("}") + 1));
+      const ids = Array.isArray(parsed.matches) ? parsed.matches.filter(n => Number.isInteger(n) && n >= 0 && n < allEntries.length) : [];
+      setAiRes({ answer: parsed.answer || "", ids });
+    } catch (e) { setAiRes("__ERROR__"); }
+    setAiSearching(false);
+  };
+
   return (
     <div>
       {/* Filters */}
@@ -184,6 +205,50 @@ export default function PatternLibrary({ supaUrl, supaKey }) {
         <div style={{ marginBottom: 13, marginLeft: "auto" }}>
           <Btn onClick={() => setModal({})}>+ Classify case</Btn>
         </div>
+      </div>
+
+      {/* AI smart search */}
+      <div style={{ background: C.panel, border: `1px solid ${C.accent}44`, borderRadius: 10, padding: "14px 16px", marginBottom: 18 }}>
+        <div style={{ fontSize: 9, color: C.accent, letterSpacing: 2, marginBottom: 8 }}>🔎 ASK YOUR LIBRARY</div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <input value={aiQ} onChange={e => setAiQ(e.target.value)} onKeyDown={e => { if (e.key === "Enter") runAISearch(); }}
+            placeholder='e.g. "invalid bull flags where I broke R2" or "what do my valid triangles share?"'
+            style={{ flex: 1, minWidth: 220, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "Inter, sans-serif", fontSize: 13 }} />
+          <Btn onClick={runAISearch} disabled={aiSearching || !aiQ.trim() || !allEntries.length}>{aiSearching ? "Searching..." : "Ask"}</Btn>
+          {aiRes && !aiSearching && <Btn ghost onClick={() => { setAiRes(null); setAiQ(""); }}>Clear</Btn>}
+        </div>
+        {aiSearching && (
+          <div style={{ textAlign: "center", padding: "16px 0" }}>
+            <div style={{ width: 26, height: 26, border: `3px solid ${C.border}`, borderTopColor: C.accent, borderRadius: "50%", animation: "spin .9s linear infinite", margin: "0 auto" }} />
+          </div>
+        )}
+        {aiRes && !aiSearching && (
+          <div style={{ marginTop: 12 }}>
+            {aiRes === "__ERROR__"
+              ? <div style={{ color: C.red, fontSize: 13 }}>Could not search. Try again.</div>
+              : <>
+                  <div style={{ fontSize: 13, color: C.text, lineHeight: 1.7, whiteSpace: "pre-wrap", marginBottom: aiRes.ids.length ? 14 : 0 }}>{aiRes.answer}</div>
+                  {aiRes.ids.length > 0 && <>
+                    <div style={{ fontSize: 9, color: C.accent, letterSpacing: 2, marginBottom: 10 }}>MATCHING CASES ({aiRes.ids.length})</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 12 }}>
+                      {aiRes.ids.map(i => { const e = allEntries[i]; if (!e) return null; const v = libVerdict(e.verdict, e.sub_verdict); return (
+                        <div key={e.id} onClick={() => setDetail(e)} style={{ background: C.bg, border: `1px solid ${C.border}`, borderLeft: `3px solid ${v.color}`, borderRadius: 10, overflow: "hidden", cursor: "pointer" }}>
+                          {e.image_url
+                            ? <img src={e.image_url} alt="" style={{ width: "100%", height: 120, objectFit: "cover", display: "block", background: C.bg }} />
+                            : <div style={{ height: 120, background: C.panel, display: "flex", alignItems: "center", justifyContent: "center", color: C.muted, fontSize: 11 }}>no image</div>}
+                          <div style={{ padding: "10px 12px" }}>
+                            <div style={{ fontSize: 10, color: v.color, letterSpacing: 1, fontWeight: 700 }}>{v.label}</div>
+                            <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 16, letterSpacing: 1, marginTop: 3 }}>{libPatLabel(e.pattern_type)}</div>
+                            {e.direction && <div style={{ fontSize: 10, color: C.dim, marginTop: 1 }}>{e.direction}{e.pair ? ` - ${e.pair}` : ""}</div>}
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 8 }}>{(e.rules || []).map(r => <Tag key={r} color={C.accent}>R{r}</Tag>)}</div>
+                          </div>
+                        </div>
+                      ); })}
+                    </div>
+                  </>}
+                </>}
+          </div>
+        )}
       </div>
 
       {loading ? <Empty text="Loading library..." />
