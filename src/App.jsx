@@ -308,8 +308,22 @@ export default function App() {
       {/* SIDEBAR */}
       <aside style={{ width: 230, background: C.panel, borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column", flexShrink: 0 }}>
         <div style={{ padding: "22px 20px 18px", borderBottom: `1px solid ${C.border}` }}>
-          <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 24, letterSpacing: 2, lineHeight: 1.05 }}>THE UNKNOWN<br /><span style={{ color: C.accent }}>SOFTWARE</span></div>
-          <div style={{ fontSize: 9, color: C.text, letterSpacing: 3, marginTop: 4 }}>TRADING JOURNAL</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <svg width="58" height="58" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
+              <path d="M21 13 L5 7 L5 11 L21 16 Z" fill={C.accent} opacity="0.30" />
+              <path d="M27 13 L43 7 L43 11 L27 16 Z" fill={C.accent} opacity="0.30" />
+              <path d="M24 3.5 L29.5 11 L18.5 11 Z" fill={C.accent} />
+              <rect x="20" y="11" width="8" height="6" fill={C.accent} />
+              <path d="M21 17 L27 17 L28.08 24 L19.92 24 Z" fill={C.accent} />
+              <path d="M19.62 26 L28.38 26 L29.46 33 L18.54 33 Z" fill={C.accent} />
+              <path d="M18.23 35 L29.77 35 L31 43 L17 43 Z" fill={C.accent} />
+              <rect x="14.5" y="43" width="19" height="3" rx="1" fill={C.accent} />
+            </svg>
+            <div>
+              <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 22, letterSpacing: 2, lineHeight: 1.05 }}>THE UNKNOWN<br /><span style={{ color: C.accent }}>SOFTWARE</span></div>
+              <div style={{ fontSize: 9, color: C.text, letterSpacing: 3, marginTop: 4 }}>TRADING JOURNAL</div>
+            </div>
+          </div>
         </div>
 
         <div style={{ fontSize: 9, color: C.text, letterSpacing: 3, padding: "16px 20px 6px" }}>MENU</div>
