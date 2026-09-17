@@ -558,6 +558,9 @@ function PatternLog({ patterns, trades, onView }) {
 function Compass({ trades, stats, patName, backtests, patternLib, aiResult, setAiResult, aiLoading, setAiLoading }) {
   backtests = backtests || [];
   patternLib = patternLib || [];
+  const [question, setQuestion] = useState("");
+  const [qAnswer, setQAnswer] = useState(null);
+  const [asking, setAsking] = useState(false);
   const insights = [];
   if (trades.length >= 3) {
     if (stats.avgLoss > stats.avgWin * 1.5) insights.push("⚠️ Your average loss is 1.5x your average win. Tighten your stop or extend your target.");
@@ -636,6 +639,24 @@ function Compass({ trades, stats, patName, backtests, patternLib, aiResult, setA
     setAiLoading(false);
   };
 
+  const askQuestion = async () => {
+    const q = question.trim();
+    if (!q) return;
+    setAsking(true); setQAnswer(null);
+    try {
+      const statsData = JSON.stringify({ total: trades.length, wins: stats.wins, losses: stats.losses, winrate: stats.winrate, avgWin: stats.avgWin.toFixed(2), avgLoss: stats.avgLoss.toFixed(2), rr: stats.rr, totalPnl: stats.totalPnl.toFixed(2) });
+      const tradesData = JSON.stringify(trades.slice(-40).map(t => ({ pair: t.pair, type: t.type, pattern: patName(t.patternId), session: t.session, day: t.day, emotion: t.emotion || "-", result: t.result, pnl: t.pnl, rules: t.rules })));
+      const btData = JSON.stringify(backtests.slice(-25).map(b => ({ pair: b.pair, pattern: patName(b.patternId), result: b.result, pnl: b.pnl })));
+      const libData = JSON.stringify(patternLib.slice(-40).map(e => ({ pattern: e.pattern_type, pair: e.pair, verdict: e.verdict === "no_es" ? "INVALID" : "VALID", rules: e.rules })));
+      const prompt = "You are an expert forex trading coach with full access to this trader's own logged data. Answer the trader's question directly, specifically and honestly in English, plain text only, no markdown, no preamble. Base your answer ONLY on the data provided; if the data is insufficient, say so plainly. Keep it under 6 sentences unless the question truly needs more. STATS: " + statsData + " REAL_TRADES: " + tradesData + " BACKTESTS: " + btData + " LIBRARY: " + libData + " RULE_LEGEND: " + JSON.stringify(LIB_RULE_LABELS) + " QUESTION: " + q;
+      const res = await fetch("/.netlify/functions/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 700, messages: [{ role: "user", content: prompt }] }) });
+      if (!res.ok) throw new Error("status " + res.status);
+      const data = await res.json();
+      setQAnswer((data.content || []).map(b => b.text || "").join("").trim() || "(no answer)");
+    } catch (e) { setQAnswer("__ERROR__"); }
+    setAsking(false);
+  };
+
   return (
     <div style={{ maxWidth: 720 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 18, marginBottom: 22 }}>
@@ -664,6 +685,26 @@ function Compass({ trades, stats, patName, backtests, patternLib, aiResult, setA
             <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 18, color: C.accent }}>{v}</div>
           </div>
         ))}
+      </div>
+
+      <SLabel>💬 ASK YOUR DATA</SLabel>
+      <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: "15px 17px", marginBottom: 22 }}>
+        <div style={{ fontSize: 12, color: C.dim, marginBottom: 10, lineHeight: 1.6 }}>Ask anything about your own trades, backtests and library — e.g. "Why do I lose on Tuesdays?", "What's my best setup?", "Which rule do I break most when losing?"</div>
+        <textarea value={question} onChange={e => setQuestion(e.target.value)} placeholder="Type your question..." rows={2}
+          style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "Inter, sans-serif", fontSize: 13, resize: "vertical", marginBottom: 10 }} />
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <Btn onClick={askQuestion} disabled={asking || !question.trim()}>{asking ? "Thinking..." : "Ask"}</Btn>
+        </div>
+        {asking && (
+          <div style={{ textAlign: "center", padding: "18px 0" }}>
+            <div style={{ width: 28, height: 28, border: `3px solid ${C.border}`, borderTopColor: C.accent, borderRadius: "50%", animation: "spin .9s linear infinite", margin: "0 auto" }} />
+          </div>
+        )}
+        {qAnswer && !asking && (
+          <div style={{ marginTop: 12, background: qAnswer === "__ERROR__" ? "transparent" : `${C.accent}0a`, border: `1px solid ${qAnswer === "__ERROR__" ? C.red : C.accent}44`, borderRadius: 8, padding: "13px 15px" }}>
+            <div style={{ fontSize: 13, color: qAnswer === "__ERROR__" ? C.red : C.text, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{qAnswer === "__ERROR__" ? "Could not get an answer. Try again." : qAnswer}</div>
+          </div>
+        )}
       </div>
 
       {aiLoading && (
