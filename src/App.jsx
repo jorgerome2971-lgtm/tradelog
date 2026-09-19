@@ -32,6 +32,19 @@ const css = `
   ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 4px; }
   input, select, textarea { outline: none; font-family: 'Inter', sans-serif; }
   body { font-family: 'Inter', sans-serif; }
+  .tus-hamburger { display: none; }
+  .tus-overlay { display: none; }
+  @media (max-width: 820px) {
+    html { zoom: 1; }
+    .tus-sidebar { position: fixed; top: 0; left: 0; bottom: 0; z-index: 100; transform: translateX(-100%); transition: transform .25s ease; box-shadow: 0 0 40px rgba(0,0,0,.6); }
+    .tus-sidebar.open { transform: translateX(0); }
+    .tus-overlay.show { display: block; position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 90; }
+    .tus-hamburger { display: inline-flex !important; align-items: center; justify-content: center; }
+    .tus-topbar { position: sticky; top: 0; z-index: 50; }
+    .tus-content { padding-left: 16px !important; padding-right: 16px !important; padding-top: 16px !important; }
+    .rgrid { grid-template-columns: 1fr !important; }
+    .stat7 { grid-template-columns: 1fr 1fr !important; }
+  }
 `;
 
 function Inp({ label, value, onChange, type = "text", placeholder = "" }) {
@@ -101,9 +114,29 @@ function Modal({ title, onClose, children }) {
   );
 }
 
+function NavIcon({ id }) {
+  const p = {
+    dashboard: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /></>,
+    trades: <><polyline points="3 16 9 10 13 14 21 6" /><polyline points="15 6 21 6 21 12" /></>,
+    patterns: <path d="M12 3 L21 12 L12 21 L3 12 Z" />,
+    pairs: <><polyline points="7 5 3 9 7 13" /><path d="M3 9 H18" /><polyline points="17 11 21 15 17 19" /><path d="M21 15 H6" /></>,
+    charts: <><line x1="6" y1="20" x2="6" y2="11" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="18" y1="20" x2="18" y2="14" /></>,
+    backtest: <><path d="M9 3 h6" /><path d="M10 3 v5 L4.5 18 a1.4 1.4 0 0 0 1.2 2.1 h12.6 a1.4 1.4 0 0 0 1.2 -2.1 L15 8 V3" /><line x1="8" y1="14.5" x2="16" y2="14.5" /></>,
+    rounds: <><circle cx="12" cy="12" r="8.5" /><circle cx="12" cy="12" r="4.5" /><circle cx="12" cy="12" r="1" /></>,
+    compass: <><circle cx="12" cy="12" r="9" /><polygon points="16 8 13.5 13.5 8 16 10.5 10.5" /></>,
+    accounts: <><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M8 7 V5.5 A2 2 0 0 1 10 3.5 h4 a2 2 0 0 1 2 2 V7" /></>,
+    withdrawals: <><rect x="2.5" y="6" width="19" height="12" rx="2" /><circle cx="12" cy="12" r="2.6" /><line x1="6" y1="12" x2="6" y2="12" /><line x1="18" y1="12" x2="18" y2="12" /></>,
+    library: <><path d="M12 6 C10 4.3 6.5 4.3 4.5 5.2 V18.5 c2 -0.9 5.5 -0.9 7.5 0.8 c2 -1.7 5.5 -1.7 7.5 -0.8 V5.2 C17.5 4.3 14 4.3 12 6 Z" /><line x1="12" y1="6" x2="12" y2="19.3" /></>,
+    links: <><path d="M10 13 a5 5 0 0 0 7 0 l2 -2 a5 5 0 0 0 -7 -7 l-1 1" /><path d="M14 11 a5 5 0 0 0 -7 0 l-2 2 a5 5 0 0 0 7 7 l1 -1" /></>,
+    firms: <><path d="M4 21 V4.5 A1.5 1.5 0 0 1 5.5 3 h9 A1.5 1.5 0 0 1 16 4.5 V21" /><path d="M16 9 h3.5 A1.5 1.5 0 0 1 21 10.5 V21" /><line x1="2.5" y1="21" x2="21.5" y2="21" /><line x1="8" y1="7" x2="8" y2="7" /><line x1="12" y1="7" x2="12" y2="7" /><line x1="8" y1="11" x2="8" y2="11" /><line x1="12" y1="11" x2="12" y2="11" /><line x1="8" y1="15" x2="8" y2="15" /><line x1="12" y1="15" x2="12" y2="15" /></>,
+  }[id];
+  return <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{p}</svg>;
+}
+
 // ── MAIN APP ──────────────────────────────────────────────────────────────────
 export default function App() {
   const [tab, setTab] = useState("dashboard");
+  const [menuOpen, setMenuOpen] = useState(false);
   const [accounts, setAccounts] = useState([]);
   const [trades, setTrades] = useState([]);
   const [patterns, setPatterns] = useState([]);
@@ -304,9 +337,10 @@ export default function App() {
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: C.bg, color: C.text, fontFamily: "Inter, sans-serif" }}>
       <style>{css}</style>
+      {menuOpen && <div className="tus-overlay show" onClick={() => setMenuOpen(false)} />}
 
       {/* SIDEBAR */}
-      <aside style={{ width: 230, background: C.panel, borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column", flexShrink: 0 }}>
+      <aside className={"tus-sidebar" + (menuOpen ? " open" : "")} style={{ width: 230, background: C.panel, borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column", flexShrink: 0 }}>
         <div style={{ padding: "22px 20px 18px", borderBottom: `1px solid ${C.border}` }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <svg width="58" height="58" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
@@ -321,18 +355,18 @@ export default function App() {
             </svg>
             <div>
               <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 22, letterSpacing: 2, lineHeight: 1.05 }}>THE UNKNOWN<br /><span style={{ color: C.accent }}>SOFTWARE</span></div>
-              <div style={{ fontSize: 9, color: C.text, letterSpacing: 3, marginTop: 4 }}>TRADING JOURNAL</div>
+              <div style={{ fontSize: 9, color: C.text, letterSpacing: 2, marginTop: 4, lineHeight: 1.5 }}>YOUR COACH TRADING JOURNAL</div>
             </div>
           </div>
         </div>
 
         <div style={{ fontSize: 9, color: C.text, letterSpacing: 3, padding: "16px 20px 6px" }}>MENU</div>
-        {navItems.map(n => (
-          <button key={n.id} onClick={() => setTab(n.id)}
-            style={{ display: "flex", alignItems: "center", gap: 11, padding: "13px 20px", background: tab === n.id ? `rgba(198,245,49,0.10)` : "transparent", border: "none", borderRight: tab === n.id ? `3px solid ${C.accent}` : "3px solid transparent", color: C.text, fontSize: 14, letterSpacing: 1, cursor: "pointer", width: "100%", textAlign: "left" }}>
-            <span style={{ fontSize: 17, width: 22, textAlign: "center" }}>{n.icon}</span>{n.label}
+        {navItems.map(n => { const sel = tab === n.id; return (
+          <button key={n.id} onClick={() => { setTab(n.id); setMenuOpen(false); }}
+            style={{ display: "flex", alignItems: "center", gap: 11, margin: "2px 10px", padding: "11px 12px", background: sel ? C.accent : "transparent", border: "none", borderRadius: 8, color: sel ? C.bg : C.text, fontSize: 14, fontWeight: sel ? 700 : 500, letterSpacing: 0.3, cursor: "pointer", width: "calc(100% - 20px)", textAlign: "left" }}>
+            <span style={{ display: "flex", width: 22, justifyContent: "center", flexShrink: 0, color: sel ? C.bg : C.accent }}><NavIcon id={n.id} /></span>{n.label}
           </button>
-        ))}
+        ); })}
 
         <div style={{ marginTop: "auto", padding: 16, borderTop: `1px solid ${C.border}` }}>
           <div style={{ fontSize: 9, color: C.text, letterSpacing: 3, marginBottom: 6 }}>TOTAL P&L</div>
@@ -345,9 +379,12 @@ export default function App() {
 
       {/* MAIN */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 26px", borderBottom: `1px solid ${C.border}`, background: C.panel, flexShrink: 0 }}>
-          <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 20, letterSpacing: 3 }}>
-            {{ dashboard: "DASHBOARD", trades: "TRADE LOG", patterns: "PATTERNS", pairs: "MY PAIRS", charts: "CHARTS", backtest: "BACKTESTING", rounds: "FIGHT ROUNDS", compass: "AI COMPASS", accounts: "ACCOUNTS", withdrawals: "WITHDRAWALS", library: "PATTERNS LIBRARY", links: "STUDY LINKS", firms: "MY FIRMS" }[tab]}
+        <div className="tus-topbar" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 26px", borderBottom: `1px solid ${C.border}`, background: C.panel, flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+            <button className="tus-hamburger" onClick={() => setMenuOpen(true)} style={{ background: "transparent", border: "none", color: C.accent, fontSize: 24, cursor: "pointer", padding: 0, lineHeight: 1 }}>☰</button>
+            <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 20, letterSpacing: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {{ dashboard: "DASHBOARD", trades: "TRADE LOG", patterns: "PATTERNS", pairs: "MY PAIRS", charts: "CHARTS", backtest: "BACKTESTING", rounds: "FIGHT ROUNDS", compass: "AI COMPASS", accounts: "ACCOUNTS", withdrawals: "WITHDRAWALS", library: "PATTERNS LIBRARY", links: "STUDY LINKS", firms: "MY FIRMS" }[tab]}
+            </div>
           </div>
           <div style={{ display: "flex", gap: 10 }}>
             {tab === "accounts" && <Btn onClick={() => setModal({ type: "account" })}>+ Account</Btn>}
@@ -363,7 +400,7 @@ export default function App() {
           </div>
         </div>
 
-        <div className="fadein" style={{ flex: 1, padding: "22px 26px", overflowY: "auto" }}>
+        <div className="fadein tus-content" style={{ flex: 1, padding: "22px 26px", overflowY: "auto" }}>
           {tab === "dashboard" && <Dashboard trades={trades} stats={stats} patterns={patterns} acctName={acctName} patName={patName} onViewTrade={id => setModal({ type: "view-trade", id })} />}
           {tab === "trades" && <TradeLog trades={trades} acctName={acctName} patName={patName} onView={id => setModal({ type: "view-trade", id })} />}
           {tab === "patterns" && <PatternLog patterns={patterns} trades={trades} onView={id => setModal({ type: "view-pattern", id })} />}
@@ -467,7 +504,7 @@ function Dashboard({ trades, stats, patterns, acctName, patName, onViewTrade }) 
 
   return (
     <div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 10, marginBottom: 22 }}>
+      <div className="stat7" style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 10, marginBottom: 22 }}>
         {[
           { label: "TOTAL P&L", val: fmt(stats.totalPnl), color: stats.totalPnl >= 0 ? C.green : C.red },
           { label: "TRADES", val: stats.total },
@@ -483,7 +520,7 @@ function Dashboard({ trades, stats, patterns, acctName, patName, onViewTrade }) 
           </div>
         ))}
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+      <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
         <div>
           <SLabel>RECENT TRADES</SLabel>
           {!trades.length ? <Empty text="No trades yet" /> :
@@ -692,7 +729,7 @@ function Compass({ trades, stats, patName, backtests, patternLib, aiResult, setA
           </div>
         ))}
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, margin: "18px 0 22px" }}>
+      <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, margin: "18px 0 22px" }}>
         {[["WIN RATE", stats.winrate], ["AVG R:R", stats.rr !== "—" ? stats.rr + ":1" : "—"], ["AVG WIN", fmt(stats.avgWin)], ["AVG LOSS", fmt(stats.avgLoss)], ["WINNERS", stats.wins], ["LOSERS", stats.losses]].map(([l, v]) => (
           <div key={l} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: "12px 14px" }}>
             <div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, marginBottom: 6 }}>{l}</div>
@@ -843,18 +880,18 @@ function AccountModal({ account, onClose, onSave, onDelete }) {
   return (
     <Modal title={a.id ? "EDIT ACCOUNT" : "NEW ACCOUNT"} onClose={onClose}>
       <Inp label="ACCOUNT NAME" value={name} onChange={setName} placeholder="e.g. FTMO $10K Challenge" />
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+      <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <Inp label="BROKER / FIRM" value={broker} onChange={setBroker} placeholder="FTMO, TopStep..." />
         <Inp label="ACCOUNT SIZE ($)" value={size} onChange={setSize} type="number" placeholder="10000" />
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+      <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <Sel label="CURRENCY" value={currency} onChange={setCurrency} options={CURRENCIES} />
         <Inp label="MAX DAILY LOSS %" value={maxDaily} onChange={setMaxDaily} type="number" placeholder="5" />
       </div>
       <Inp label="MAX DRAWDOWN %" value={maxDrawdown} onChange={setMaxDrawdown} type="number" placeholder="10" />
       <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 14, marginTop: 4, marginBottom: 13 }}>
         <div style={{ fontSize: 9, color: C.gold, letterSpacing: 2, marginBottom: 10 }}>💸 WITHDRAWAL SPLIT (default for this account)</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <Inp label="MY PERCENTAGE %" value={myPct} onChange={setMyPct} type="number" placeholder="80" />
           <Inp label="FIRM PERCENTAGE %" value={firmPct} onChange={setFirmPct} type="number" placeholder="20" />
         </div>
@@ -987,12 +1024,12 @@ JSON: {"message":"2-3 sentences of direct coaching based on this result and thei
         <input type="date" value={date} onChange={e => setDate(e.target.value)}
           style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "Inter, sans-serif" }} />
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+      <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
         <Sel label="DAY" value={day} onChange={setDay} options={DAYS} />
         <Inp label="TIME" value={time} onChange={setTime} type="time" />
         <Sel label="SESSION" value={session} onChange={setSession} options={SESSIONS} />
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+      <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <div style={{ marginBottom: 13 }}>
           <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>PAIR</div>
           <select value={pair} onChange={e => setPair(e.target.value)}
@@ -1006,15 +1043,15 @@ JSON: {"message":"2-3 sentences of direct coaching based on this result and thei
         </div>
         <Sel label="TYPE" value={type} onChange={setType} options={[{ value: "buy", label: "BUY (Long)" }, { value: "sell", label: "SELL (Short)" }]} placeholder="" />
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+      <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <Sel label="PATTERN USED" value={patternId} onChange={setPatternId} options={patterns.map(p => ({ value: p.id, label: p.name }))} placeholder="— No pattern —" />
         <Sel label="TIMEFRAME" value={timeframe} onChange={setTimeframe} options={TIMEFRAMES} />
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+      <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <Inp label="RISK $ AMOUNT" value={riskAmount} onChange={setRiskAmount} type="number" placeholder="0.00" />
         <Sel label="EMOTION AT ENTRY" value={emotion} onChange={setEmotion} options={EMOTIONS} />
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+      <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <Inp label="TRADINGVIEW ENTRY LINK" value={entryLink} onChange={setEntryLink} placeholder="https://..." />
         <Inp label="TRADINGVIEW EXIT LINK" value={exitLink} onChange={setExitLink} placeholder="https://..." />
       </div>
@@ -1050,7 +1087,7 @@ JSON: {"message":"2-3 sentences of direct coaching based on this result and thei
       </div>
 
       {/* RESULT + P&L + RISK */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+      <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
         <div style={{ marginBottom: 13 }}>
           <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>RESULT</div>
           <select value={result} onChange={e => handleResultChange(e.target.value)}
@@ -1098,7 +1135,7 @@ function PatternModal({ pattern, onClose, onSave, onDelete }) {
   return (
     <Modal title={p.id ? "EDIT PATTERN" : "NEW PATTERN"} onClose={onClose}>
       <Inp label="PATTERN NAME" value={name} onChange={setName} placeholder="e.g. BOS Pullback 15m" />
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+      <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <Sel label="TIMEFRAME" value={timeframe} onChange={setTimeframe} options={TIMEFRAMES} />
         <Sel label="BEST SESSION" value={session} onChange={setSession} options={SESSIONS} />
       </div>
@@ -1198,7 +1235,7 @@ JSON format:
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 14 }}>
+      <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 14 }}>
         {det("RESULT", trade.result)}{det("PATTERN", patName(trade.patternId))}{det("TIMEFRAME", trade.timeframe)}
         {det("SESSION", trade.session)}{det("EMOTION", trade.emotion)}{det("RISK $", trade.riskAmount ? `$${trade.riskAmount}` : null)}
       </div>
@@ -1267,7 +1304,7 @@ JSON format:
                 <div style={{ fontSize: 12, lineHeight: 1.7, color: C.text }}>{aiFeedback.summary}</div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+              <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
                 <div style={{ background: "rgba(16,217,138,.06)", border: `1px solid ${C.green}22`, borderRadius: 8, padding: "12px 14px" }}>
                   <div style={{ fontSize: 9, color: C.green, letterSpacing: 2, marginBottom: 8 }}>✅ WHAT WENT WELL</div>
                   {(aiFeedback.whatWentWell || []).map((s, i) => <div key={i} style={{ fontSize: 11, color: C.text, lineHeight: 1.7, padding: "3px 0", display: "flex", gap: 6 }}><span style={{ color: C.green }}>▲</span>{s}</div>)}
@@ -1324,7 +1361,7 @@ function WithdrawalLog({ withdrawals, accounts, acctName, trades, onEdit }) {
   withdrawals.forEach(w => { if (!acctWd[w.accountId]) acctWd[w.accountId] = 0; acctWd[w.accountId] += w.amount || 0; });
   return (
     <div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 22 }}>
+      <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 22 }}>
         {[{ label: "GROSS P&L", val: fmt(grossPnl), color: grossPnl >= 0 ? C.green : C.red }, { label: "TOTAL WITHDRAWN", val: fmt(totalWithdrawn), color: C.gold }, { label: "NET REMAINING", val: fmt(grossPnl - totalWithdrawn), color: (grossPnl - totalWithdrawn) >= 0 ? C.green : C.red }].map(s => (
           <div key={s.label} style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "13px 14px" }}>
             <div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, marginBottom: 8 }}>{s.label}</div>
@@ -1388,11 +1425,11 @@ function WithdrawalModal({ withdrawal, accounts, onClose, onSave, onDelete }) {
   return (
     <Modal title={w.id ? "EDIT WITHDRAWAL" : "NEW WITHDRAWAL"} onClose={onClose}>
       <Sel label="ACCOUNT" value={accountId} onChange={setAccountId} options={accounts.map(a => ({ value: a.id, label: a.name }))} placeholder="Select..." />
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+      <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <Inp label="DATE" value={date} onChange={setDate} type="date" />
         <Inp label="TOTAL AMOUNT ($)" value={amount} onChange={setAmount} type="number" placeholder="0.00" />
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+      <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <Inp label="MY PERCENTAGE %" value={myPct} onChange={setMyPct} type="number" placeholder="80" />
         <Inp label="FIRM PERCENTAGE %" value={firmPct} onChange={setFirmPct} type="number" placeholder="20" />
       </div>
@@ -1449,12 +1486,12 @@ function FightRounds({ tables, onSave }) {
                 <span style={{ color: C.green }}>{wins}W</span><span style={{ color: C.red }}>{losses}L</span><span style={{ color: C.dim }}>{12 - wins - losses} left</span>
               </div>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, marginBottom: 16 }}>
+            <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, marginBottom: 16 }}>
               {[{ label: "TOTAL VALUE", val: fmt(totalValue), color: C.text }, { label: "WON", val: fmt(wonValue), color: C.green }, { label: "LOST", val: fmt(lostValue), color: C.red }].map(s => (
                 <div key={s.label} style={{ background: C.bg, borderRadius: 6, padding: "8px 12px" }}><div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, marginBottom: 4 }}>{s.label}</div><div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 16, color: s.color }}>{s.val}</div></div>
               ))}
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", gap: 8 }}>
+            <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", gap: 8 }}>
               {table.values.map((val, i) => {
                 const result = table.results[i];
                 const borderColor = result === "win" ? C.green : result === "loss" ? C.red : C.border;
@@ -1587,7 +1624,7 @@ function Charts({ trades, accounts, acctName }) {
         {recorded.length === 0
           ? <div style={{ fontSize: 12, color: C.dim, lineHeight: 1.6 }}>Mark the 8 rules on your trades to unlock this. It answers the key question: are your losses variance, or indiscipline?</div>
           : <>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10 }}>
+            <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10 }}>
               {["perfect", "near", "low"].map(k => { const b = buckets[k]; const rate = wr(b.w, b.l); return (
                 <div key={k} style={{ background: C.bg, border: `1px solid ${b.color}33`, borderRadius: 8, padding: "14px 12px", textAlign: "center" }}>
                   <div style={{ fontSize: 9, color: b.color, letterSpacing: 2, marginBottom: 8 }}>{b.label}</div>
@@ -1704,7 +1741,7 @@ function Charts({ trades, accounts, acctName }) {
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+      <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
         {/* Win/Loss/BE Donut */}
         <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18 }}>
           <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3, marginBottom: 14 }}>🎯 RESULTS BREAKDOWN</div>
@@ -1736,7 +1773,7 @@ function Charts({ trades, accounts, acctName }) {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+      <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
         {/* By Pair */}
         <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18 }}>
           <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3, marginBottom: 14 }}>💱 P&L BY PAIR</div>
@@ -1757,7 +1794,7 @@ function Charts({ trades, accounts, acctName }) {
       {/* By Day */}
       <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18 }}>
         <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3, marginBottom: 14 }}>📅 P&L BY DAY OF WEEK</div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 10 }}>
+        <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 10 }}>
           {["Monday","Tuesday","Wednesday","Thursday","Friday"].map(day => {
             const d = dayMap[day] || { pnl: 0, wins: 0, total: 0 };
             return (
@@ -1791,7 +1828,7 @@ function BacktestLog({ backtests, trades, patterns, patName, pairs, onView }) {
 
   return (
     <div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 20 }}>
+      <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 20 }}>
         {[
           { label: "BACKTEST P&L", val: fmt(totalPnl), color: totalPnl >= 0 ? C.green : C.red },
           { label: "REAL P&L", val: fmt(realPnl), color: realPnl >= 0 ? C.green : C.red },
@@ -1849,7 +1886,7 @@ function BacktestModal({ backtest, patterns, pairs, onClose, onSave, onDelete })
         📊 Record a setup you saw but didn't trade, or a trade you're analyzing in historical data.
       </div>
       <Inp label="DATE" value={date} onChange={setDate} type="date" />
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+      <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <div style={{ marginBottom: 13 }}>
           <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>PAIR</div>
           <select value={pair} onChange={e => setPair(e.target.value)} style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "Inter, sans-serif" }}>
@@ -1859,11 +1896,11 @@ function BacktestModal({ backtest, patterns, pairs, onClose, onSave, onDelete })
         </div>
         <Sel label="TYPE" value={type} onChange={setType} options={[{ value: "buy", label: "BUY (Long)" }, { value: "sell", label: "SELL (Short)" }]} placeholder="" />
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+      <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <Sel label="PATTERN" value={patternId} onChange={setPatternId} options={patterns.map(p => ({ value: p.id, label: p.name }))} placeholder="— No pattern —" />
         <Sel label="TIMEFRAME" value={timeframe} onChange={setTimeframe} options={TIMEFRAMES} />
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+      <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
         <Sel label="SESSION" value={session} onChange={setSession} options={SESSIONS} />
         <Sel label="HYPOTHETICAL RESULT" value={result} onChange={setResult} options={["win","loss","breakeven"]} placeholder="" />
         <Inp label="HYPOTHETICAL P&L" value={pnl} onChange={setPnl} type="number" placeholder="±0.00" />
