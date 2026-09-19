@@ -186,7 +186,7 @@ export default function App() {
         if (Array.isArray(t)) setTrades(t.map(r => ({id:r.id, accountId:r.account_id, date:r.date, day:r.day, time:r.time, session:r.session, pair:r.pair, type:r.type, patternId:r.pattern_id, timeframe:r.timeframe, result:r.result, pnl:parseFloat(r.pnl)||0, riskPct:r.risk_pct, riskAmount:r.risk_amount, emotion:r.emotion, entryLink:r.entry_link, exitLink:r.exit_link, entryNotes:r.entry_notes, exitNotes:r.exit_notes, mistakes:r.mistakes, rules:r.rules||[]})));
         if (Array.isArray(p)) setPatterns(p.map(r => ({id:r.id, name:r.name, timeframe:r.timeframe, session:r.session, pairs:r.pairs, description:r.description, rules:r.rules, confirmations:r.confirmations, imageLink:r.image_link})));
         if (Array.isArray(pr)) setPairs(pr.map(r => ({id:r.id, symbol:r.symbol, description:r.description||""})));
-        if (Array.isArray(bt)) setBacktests(bt.map(r => ({id:r.id, date:r.date, pair:r.pair, type:r.type, patternId:r.pattern_id, timeframe:r.timeframe, result:r.result, pnl:parseFloat(r.pnl)||0, session:r.session, notes:r.notes||"", reason:r.reason||"", rules:r.rules||[]})));
+        if (Array.isArray(bt)) setBacktests(bt.map(r => ({id:r.id, date:r.date, pair:r.pair, type:r.type, patternId:r.pattern_id, timeframe:r.timeframe, result:r.result, pnl:parseFloat(r.pnl)||0, session:r.session, notes:r.notes||"", reason:r.reason||"", tvLink:r.tradingview_link||"", rules:r.rules||[]})));
         if (Array.isArray(wd)) setWithdrawals(wd.map(r => ({id:r.id, accountId:r.account_id, date:r.date, amount:parseFloat(r.amount)||0, myPct:r.my_pct||"", firmPct:r.firm_pct||"", notes:r.notes||""})));
         if (Array.isArray(pl)) setPatternLib(pl);
       } catch (e) { setSaveStatus("⚠ Connection error"); }
@@ -268,7 +268,7 @@ export default function App() {
     try {
       const deleted = prev.filter(b => !data.find(d => d.id === b.id));
       await Promise.all(deleted.map(b => dbDelete("backtests", b.id)));
-      if (data.length) await dbUpsert("backtests", data.map(b => ({id:b.id, date:b.date||null, pair:b.pair||null, type:b.type||null, pattern_id:b.patternId||null, timeframe:b.timeframe||null, result:b.result||"win", pnl:b.pnl||0, session:b.session||null, notes:b.notes||null, reason:b.reason||null, rules:b.rules||[]})));
+      if (data.length) await dbUpsert("backtests", data.map(b => ({id:b.id, date:b.date||null, pair:b.pair||null, type:b.type||null, pattern_id:b.patternId||null, timeframe:b.timeframe||null, result:b.result||"win", pnl:b.pnl||0, session:b.session||null, notes:b.notes||null, reason:b.reason||null, tradingview_link:b.tvLink||null, rules:b.rules||[]})));
       setSaveStatus("✓ Saved");
     } catch { setSaveStatus("⚠ Save error"); }
     setTimeout(() => setSaveStatus(""), 2000);
@@ -1812,6 +1812,22 @@ function Charts({ trades, accounts, acctName }) {
 }
 
 function BacktestLog({ backtests, trades, patterns, patName, pairs, onView }) {
+  const [q, setQ] = useState("");
+  const [asking, setAsking] = useState(false);
+  const [ans, setAns] = useState(null);
+  const askBT = async () => {
+    const qq = q.trim(); if (!qq || !backtests.length) return;
+    setAsking(true); setAns(null);
+    try {
+      const data = JSON.stringify(backtests.slice(-40).map(b => ({ date: b.date, pair: b.pair, type: b.type, pattern: patName(b.patternId), tf: b.timeframe, session: b.session, result: b.result, pnl: b.pnl, rules: b.rules, why: (b.reason||"").slice(0,160), notes: (b.notes||"").slice(0,160) })));
+      const prompt = "You are an expert forex trading coach. Answer the trader's question about THEIR OWN backtests (setups they studied but did not trade live), directly and specifically in English, plain text only, no markdown, no preamble. Base your answer ONLY on the backtest data provided; if insufficient, say so. Under 6 sentences unless truly needed. BACKTESTS: " + data + " QUESTION: " + qq;
+      const res = await fetch("/.netlify/functions/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 700, messages: [{ role: "user", content: prompt }] }) });
+      if (!res.ok) throw new Error("s" + res.status);
+      const d = await res.json();
+      setAns((d.content || []).map(x => x.text || "").join("").trim() || "(no answer)");
+    } catch { setAns("__ERROR__"); }
+    setAsking(false);
+  };
   if (!backtests.length) return (
     <div>
       <Empty text="No backtests yet. Add trades you analyzed but didn't take!" />
@@ -1840,6 +1856,15 @@ function BacktestLog({ backtests, trades, patterns, patName, pairs, onView }) {
             <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 20, color: s.color || C.text }}>{s.val}</div>
           </div>
         ))}
+      </div>
+      <div style={{ background: C.panel, border: `1px solid ${C.accent}44`, borderRadius: 10, padding: "14px 16px", marginBottom: 18 }}>
+        <div style={{ fontSize: 9, color: C.accent, letterSpacing: 2, marginBottom: 8 }}>💬 ASK ABOUT YOUR BACKTESTS</div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <input value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => { if (e.key === "Enter") askBT(); }} placeholder='e.g. "which pattern misses most?" or "what setups should I have taken?"' style={{ flex: 1, minWidth: 220, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "Inter, sans-serif", fontSize: 13 }} />
+          <Btn onClick={askBT} disabled={asking || !q.trim()}>{asking ? "Thinking..." : "Ask"}</Btn>
+        </div>
+        {asking && <div style={{ textAlign: "center", padding: "16px 0" }}><div style={{ width: 26, height: 26, border: `3px solid ${C.border}`, borderTopColor: C.accent, borderRadius: "50%", animation: "spin .9s linear infinite", margin: "0 auto" }} /></div>}
+        {ans && !asking && <div style={{ marginTop: 12, background: ans === "__ERROR__" ? "transparent" : `${C.accent}0a`, border: `1px solid ${ans === "__ERROR__" ? C.red : C.accent}44`, borderRadius: 8, padding: "13px 15px" }}><div style={{ fontSize: 13, color: ans === "__ERROR__" ? C.red : C.text, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{ans === "__ERROR__" ? "Could not get an answer. Try again." : ans}</div></div>}
       </div>
       <div>{[...backtests].reverse().map(b => {
         const meta = { win: { c: C.green, i: "▲" }, loss: { c: C.red, i: "▼" }, breakeven: { c: C.muted, i: "─" } };
@@ -1877,9 +1902,10 @@ function BacktestModal({ backtest, patterns, pairs, onClose, onSave, onDelete })
   const [pnl, setPnl] = useState(b.pnl ?? "");
   const [notes, setNotes] = useState(b.notes || "");
   const [reason, setReason] = useState(b.reason || "");
+  const [tvLink, setTvLink] = useState(b.tvLink || "");
   const [rules, setRules] = useState(b.rules || []);
   const toggleRule = (r) => setRules(p => p.includes(r) ? p.filter(x => x !== r) : [...p, r].sort((a, b) => a - b));
-  const save = () => { if (!pair) return; onSave({ id: b.id || uid(), date, pair, type, patternId, timeframe, session, result, pnl: parseFloat(pnl)||0, notes, reason, rules }); };
+  const save = () => { if (!pair) return; onSave({ id: b.id || uid(), date, pair, type, patternId, timeframe, session, result, pnl: parseFloat(pnl)||0, notes, reason, tvLink, rules }); };
   return (
     <Modal title={b.id ? "EDIT BACKTEST" : "NEW BACKTEST TRADE"} onClose={onClose}>
       <div style={{ background: `${C.gold}0a`, border: `1px solid ${C.gold}33`, borderRadius: 6, padding: "10px 14px", marginBottom: 14, fontSize: 11, color: C.gold }}>
@@ -1930,6 +1956,7 @@ function BacktestModal({ backtest, patterns, pairs, onClose, onSave, onDelete })
         <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>ANALYSIS NOTES</div>
         <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="What did you observe? What worked in theory?" rows={3} style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "Inter, sans-serif", resize: "vertical" }} />
       </div>
+      <Inp label="TRADINGVIEW LINK (optional)" value={tvLink} onChange={setTvLink} placeholder="https://..." />
       <div style={{ display: "flex", gap: 10 }}><Btn onClick={save} full>Save Backtest</Btn>{b.id && <Btn danger onClick={() => { if (confirm("Delete?")) onDelete(b.id); }}>Delete</Btn>}</div>
     </Modal>
   );
@@ -1988,6 +2015,7 @@ JSON: {"setupQuality":"rate the setup quality 1-10 and explain","comparedToReal"
       )}
       {backtest.reason && <div style={{ background: `${C.gold}08`, border: `1px solid ${C.gold}22`, borderRadius: 8, padding: "12px 14px", marginBottom: 10 }}><div style={{ fontSize: 9, color: C.gold, letterSpacing: 2, marginBottom: 5 }}>WHY NOT TAKEN / LESSON</div><div style={{ fontSize: 12, lineHeight: 1.7 }}>{backtest.reason}</div></div>}
       {backtest.notes && <div style={{ background: C.bg, borderRadius: 8, padding: "12px 14px", marginBottom: 14 }}><div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, marginBottom: 5 }}>ANALYSIS NOTES</div><div style={{ fontSize: 12, lineHeight: 1.7 }}>{backtest.notes}</div></div>}
+      {backtest.tvLink && <a href={backtest.tvLink} target="_blank" rel="noreferrer" style={{ display: "inline-block", fontSize: 11, padding: "7px 12px", background: "#071520", border: `1px solid ${C.accent}33`, color: C.accent, borderRadius: 4, textDecoration: "none", marginBottom: 14 }}>↗ Open in TradingView</a>}
       <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 14, marginBottom: 14 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
           <div style={{ fontSize: 9, color: C.accent, letterSpacing: 3 }}>⊕ AI COMPARISON ANALYSIS</div>
