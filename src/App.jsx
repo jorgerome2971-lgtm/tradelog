@@ -898,6 +898,7 @@ function Reflections({ reflections, onSave }) {
         <div style={{ fontSize: 9, color: C.accent, letterSpacing: 2, marginBottom: 8 }}>💬 ASK YOUR REFLECTIONS</div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <input value={aiQ} onChange={e => setAiQ(e.target.value)} onKeyDown={e => { if (e.key === "Enter") runAsk(); }} placeholder='e.g. "what have I noted about 4H structure?" or "my notes on discipline"' style={{ flex: 1, minWidth: 220, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "Inter, sans-serif", fontSize: 13 }} />
+          <MicButton onText={t => setAiQ(v => (v ? v + " " : "") + t)} />
           <Btn onClick={runAsk} disabled={aiBusy || !aiQ.trim() || !reflections.length}>{aiBusy ? "Thinking..." : "Ask"}</Btn>
           {aiRes && !aiBusy && <Btn ghost onClick={() => { setAiRes(null); setAiQ(""); }}>Clear</Btn>}
         </div>
@@ -2150,6 +2151,7 @@ function BacktestLog({ backtests, trades, patterns, patName, pairs, onView }) {
         <div style={{ fontSize: 9, color: C.accent, letterSpacing: 2, marginBottom: 8 }}>💬 ASK ABOUT YOUR BACKTESTS</div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <input value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => { if (e.key === "Enter") askBT(); }} placeholder='e.g. "which pattern misses most?" or "what setups should I have taken?"' style={{ flex: 1, minWidth: 220, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "Inter, sans-serif", fontSize: 13 }} />
+          <MicButton onText={t => setQ(v => (v ? v + " " : "") + t)} />
           <Btn onClick={askBT} disabled={asking || !q.trim()}>{asking ? "Thinking..." : "Ask"}</Btn>
         </div>
         {asking && <div style={{ textAlign: "center", padding: "16px 0" }}><div style={{ width: 26, height: 26, border: `3px solid ${C.border}`, borderTopColor: C.accent, borderRadius: "50%", animation: "spin .9s linear infinite", margin: "0 auto" }} /></div>}
