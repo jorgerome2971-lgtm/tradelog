@@ -129,6 +129,7 @@ function NavIcon({ id }) {
     library: <><path d="M12 6 C10 4.3 6.5 4.3 4.5 5.2 V18.5 c2 -0.9 5.5 -0.9 7.5 0.8 c2 -1.7 5.5 -1.7 7.5 -0.8 V5.2 C17.5 4.3 14 4.3 12 6 Z" /><line x1="12" y1="6" x2="12" y2="19.3" /></>,
     links: <><path d="M10 13 a5 5 0 0 0 7 0 l2 -2 a5 5 0 0 0 -7 -7 l-1 1" /><path d="M14 11 a5 5 0 0 0 -7 0 l-2 2 a5 5 0 0 0 7 7 l1 -1" /></>,
     firms: <><path d="M4 21 V4.5 A1.5 1.5 0 0 1 5.5 3 h9 A1.5 1.5 0 0 1 16 4.5 V21" /><path d="M16 9 h3.5 A1.5 1.5 0 0 1 21 10.5 V21" /><line x1="2.5" y1="21" x2="21.5" y2="21" /><line x1="8" y1="7" x2="8" y2="7" /><line x1="12" y1="7" x2="12" y2="7" /><line x1="8" y1="11" x2="8" y2="11" /><line x1="12" y1="11" x2="12" y2="11" /><line x1="8" y1="15" x2="8" y2="15" /><line x1="12" y1="15" x2="12" y2="15" /></>,
+    setupcheck: <><circle cx="11" cy="11" r="7" /><line x1="16.5" y1="16.5" x2="21" y2="21" /><polyline points="8 11 10.3 13.3 14.5 8.6" /></>,
   }[id];
   return <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{p}</svg>;
 }
@@ -327,6 +328,7 @@ export default function App() {
     { id: "backtest", icon: "🔬", label: "Backtesting" },
     { id: "rounds", icon: "🥊", label: "Fight Rounds" },
     { id: "compass", icon: "🧭", label: "AI Compass" },
+    { id: "setupcheck", icon: "🔦", label: "Setup Check" },
     { id: "accounts", icon: "💼", label: "Accounts" },
     { id: "withdrawals", icon: "💸", label: "Withdrawals" },
     { id: "library", icon: "📚", label: "Patterns Library" },
@@ -374,7 +376,7 @@ export default function App() {
           <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
             <button className="tus-hamburger" onClick={() => setMenuOpen(true)} style={{ background: "transparent", border: "none", color: C.accent, fontSize: 24, cursor: "pointer", padding: 0, lineHeight: 1 }}>☰</button>
             <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 20, letterSpacing: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {{ dashboard: "DASHBOARD", trades: "TRADE LOG", patterns: "PATTERNS", pairs: "MY PAIRS", charts: "CHARTS", backtest: "BACKTESTING", rounds: "FIGHT ROUNDS", compass: "AI COMPASS", accounts: "ACCOUNTS", withdrawals: "WITHDRAWALS", library: "PATTERNS LIBRARY", links: "STUDY LINKS", firms: "MY FIRMS" }[tab]}
+              {{ dashboard: "DASHBOARD", trades: "TRADE LOG", patterns: "PATTERNS", pairs: "MY PAIRS", charts: "CHARTS", backtest: "BACKTESTING", rounds: "FIGHT ROUNDS", compass: "AI COMPASS", setupcheck: "SETUP CHECK", accounts: "ACCOUNTS", withdrawals: "WITHDRAWALS", library: "PATTERNS LIBRARY", links: "STUDY LINKS", firms: "MY FIRMS" }[tab]}
             </div>
           </div>
           <div style={{ display: "flex", gap: 10 }}>
@@ -396,6 +398,7 @@ export default function App() {
           {tab === "trades" && <TradeLog trades={trades} acctName={acctName} patName={patName} onView={id => setModal({ type: "view-trade", id })} />}
           {tab === "patterns" && <PatternLog patterns={patterns} trades={trades} onView={id => setModal({ type: "view-pattern", id })} />}
           {tab === "compass" && <Compass trades={trades} stats={stats} patName={patName} backtests={backtests} patternLib={patternLib} aiResult={aiResult} setAiResult={setAiResult} aiLoading={aiLoading} setAiLoading={setAiLoading} />}
+          {tab === "setupcheck" && <SetupCheck trades={trades} backtests={backtests} patternLib={patternLib} patName={patName} />}
           {tab === "pairs" && <PairsLog pairs={pairs} onEdit={id => setModal({ type: "pair", id })} />}
           {tab === "charts" && <Charts trades={trades} accounts={accounts} acctName={acctName} />}
           {tab === "backtest" && <BacktestLog backtests={backtests} trades={trades} patterns={patterns} patName={patName} pairs={pairs} onView={id => setModal({ type: "view-backtest", id })} />}
@@ -783,6 +786,153 @@ function Compass({ trades, stats, patName, backtests, patternLib, aiResult, setA
     </div>
   );
 }
+
+const SETUP_PATTERNS = [
+  { value: "bull_flag", label: "Bull Flag" },
+  { value: "bear_flag", label: "Bear Flag" },
+  { value: "symmetrical_triangle", label: "Symmetrical Triangle" },
+  { value: "expanding_triangle", label: "Expanding Triangle" },
+  { value: "ascending_channel", label: "Ascending Channel" },
+  { value: "descending_channel", label: "Descending Channel" },
+  { value: "rising_wedge", label: "Rising Wedge" },
+  { value: "falling_wedge", label: "Falling Wedge" },
+  { value: "the_arc", label: "The Arc" },
+];
+const setupPatLabel = (v) => (SETUP_PATTERNS.find(p => p.value === v) || {}).label || v;
+const setupLibV = (verdict, sub) => verdict === "no_es" ? { c: C.red, t: "INVALID" } : (sub === "casi_perfecto" ? { c: C.gold, t: "VALID · near" } : { c: C.green, t: "VALID" });
+
+function SetupCheck({ trades, backtests, patternLib, patName }) {
+  const [pair, setPair] = useState("");
+  const [direction, setDirection] = useState("bear");
+  const [ptype, setPtype] = useState("bull_flag");
+  const [tf, setTf] = useState("1H");
+  const [session, setSession] = useState("");
+  const [rules, setRules] = useState([]);
+  const [notes, setNotes] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [res, setRes] = useState(null);
+  const toggle = (r) => setRules(p => p.includes(r) ? p.filter(x => x !== r) : [...p, r].sort((a, b) => a - b));
+  const dirType = direction === "bull" ? "buy" : "sell";
+
+  const rt = trades.filter(t => (!pair || t.pair === pair) && t.type === dirType);
+  const rtW = rt.filter(t => t.result === "win").length, rtL = rt.filter(t => t.result === "loss").length;
+  const bt = backtests.filter(b => (!pair || b.pair === pair) && b.type === dirType);
+  const btW = bt.filter(b => b.result === "win").length, btL = bt.filter(b => b.result === "loss").length;
+  const libSame = patternLib.filter(e => e.pattern_type === ptype);
+  const libValid = libSame.filter(e => e.verdict !== "no_es").length, libInvalid = libSame.filter(e => e.verdict === "no_es").length;
+
+  const run = async () => {
+    setLoading(true); setRes(null);
+    try {
+      const lib = patternLib.map((e, i) => ({ i, pattern: e.pattern_type, pair: e.pair, dir: e.direction, verdict: e.verdict === "no_es" ? "INVALID" : "VALID", sub: e.sub_verdict, rules: e.rules, why: (e.description || "").slice(0, 180) }));
+      const realD = trades.slice(-40).map(t => ({ pair: t.pair, type: t.type, pattern: patName(t.patternId), result: t.result, pnl: t.pnl, rules: t.rules, emotion: t.emotion }));
+      const btD = backtests.slice(-30).map(b => ({ pair: b.pair, type: b.type, pattern: patName(b.patternId), result: b.result, rules: b.rules }));
+      const setup = { pair: pair || "unspecified", direction, pattern: setupPatLabel(ptype), timeframe: tf, session: session || "unspecified", rulesMet: rules, notes: notes || "none" };
+      const stats = { realForThisPairDir: { wins: rtW, losses: rtL }, backtestForThisPairDir: { wins: btW, losses: btL }, libraryForThisPattern: { valid: libValid, invalid: libInvalid } };
+      const prompt = "You are an expert forex trading coach giving a SECOND OPINION on a setup the trader is considering RIGHT NOW, based ONLY on their own logged history. Be honest and specific; if the data is thin, say so plainly. This is decision-support, not a signal - the trader makes the final call. Reply ONLY with valid JSON, no markdown, no preamble, exactly this shape: {\"verdict\":\"short punchy label\",\"confidence\":\"strong|moderate|weak|mixed\",\"reasons\":[\"...\",\"...\"],\"rulesCheck\":\"one short paragraph on the 8 rules for this setup\",\"dataNote\":\"what their real trades + backtests + library say about this pattern/pair/direction, cite numbers\",\"similar\":[indices of the most similar LIBRARY cases, most relevant first]}. RULE_LEGEND: " + JSON.stringify(TRADE_RULES) + " SETUP_BEING_CONSIDERED: " + JSON.stringify(setup) + " HARD_STATS: " + JSON.stringify(stats) + " LIBRARY: " + JSON.stringify(lib) + " REAL_TRADES: " + JSON.stringify(realD) + " BACKTESTS: " + JSON.stringify(btD);
+      const r = await fetch("/.netlify/functions/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 1100, messages: [{ role: "user", content: prompt }] }) });
+      if (!r.ok) throw new Error("s" + r.status);
+      const d = await r.json();
+      let txt = (d.content || []).map(b => b.text || "").join("").trim().replace(/```json|```/g, "").trim();
+      const parsed = JSON.parse(txt.substring(txt.indexOf("{"), txt.lastIndexOf("}") + 1));
+      parsed.similar = Array.isArray(parsed.similar) ? parsed.similar.filter(n => Number.isInteger(n) && n >= 0 && n < patternLib.length) : [];
+      setRes(parsed);
+    } catch (e) { setRes("__ERROR__"); }
+    setLoading(false);
+  };
+
+  const confColor = (c) => c === "strong" ? C.green : c === "moderate" ? C.gold : c === "mixed" ? C.accent : C.red;
+
+  return (
+    <div style={{ maxWidth: 760 }}>
+      <div style={{ background: `${C.accent}0a`, border: `1px solid ${C.accent}44`, borderRadius: 10, padding: "12px 15px", marginBottom: 16, fontSize: 12, color: C.dim, lineHeight: 1.6 }}>
+        🔦 Describe a setup you're looking at right now. The AI gives a second opinion from YOUR OWN history — real trades, backtests and pattern library — and shows you similar cases. You make the call.
+      </div>
+
+      <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div style={{ marginBottom: 13 }}>
+          <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>PAIR</div>
+          <input value={pair} onChange={e => setPair(e.target.value)} placeholder="e.g. GBP/NZD" style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "Inter, sans-serif" }} />
+        </div>
+        <Sel label="DIRECTION" value={direction} onChange={setDirection} options={[{ value: "bull", label: "Bullish (Buy)" }, { value: "bear", label: "Bearish (Sell)" }]} placeholder="" />
+      </div>
+      <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <Sel label="PATTERN" value={ptype} onChange={setPtype} options={SETUP_PATTERNS} placeholder="" />
+        <Sel label="TIMEFRAME" value={tf} onChange={setTf} options={TIMEFRAMES} />
+      </div>
+      <Sel label="SESSION" value={session} onChange={setSession} options={SESSIONS} />
+
+      <div style={{ marginTop: 6, marginBottom: 13 }}>
+        <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 6 }}>WHICH OF THE 8 RULES DO YOU SEE IT MEETING?</div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {[1, 2, 3, 4, 5, 6, 7, 8].map(r => (
+            <button key={r} onClick={() => toggle(r)} title={TRADE_RULES[r]} style={{ padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontSize: 11, fontWeight: 700, fontFamily: "Inter, sans-serif", border: `1px solid ${rules.includes(r) ? C.accent : C.border}`, background: rules.includes(r) ? `${C.accent}22` : C.bg, color: rules.includes(r) ? C.accent : C.dim }}>R{r}</button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 13 }}>
+        <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>WHAT ARE YOU SEEING? (describe it)</div>
+        <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder="e.g. Triangle broke the line but hasn't broken the previous low yet; price pulling back into the pattern..." style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "Inter, sans-serif", resize: "vertical" }} />
+      </div>
+
+      <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 14 }}>
+        {[["REAL " + (pair || "·") + " " + dirType.toUpperCase(), rtW + "W / " + rtL + "L"], ["BACKTEST " + dirType.toUpperCase(), btW + "W / " + btL + "L"], [setupPatLabel(ptype).toUpperCase() + " · LIBRARY", libValid + " valid / " + libInvalid + " inv"]].map(([l, v]) => (
+          <div key={l} style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "11px 12px" }}>
+            <div style={{ fontSize: 8, color: C.muted, letterSpacing: 1, marginBottom: 6 }}>{l}</div>
+            <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 18, color: C.accent }}>{v}</div>
+          </div>
+        ))}
+      </div>
+
+      <Btn onClick={run} disabled={loading} full>{loading ? "Analyzing your history..." : "🔦 Analyze setup"}</Btn>
+
+      {loading && (
+        <div style={{ textAlign: "center", padding: "24px 0" }}>
+          <div style={{ width: 32, height: 32, border: `3px solid ${C.border}`, borderTopColor: C.accent, borderRadius: "50%", animation: "spin .9s linear infinite", margin: "0 auto" }} />
+        </div>
+      )}
+
+      {res && !loading && (res === "__ERROR__"
+        ? <div style={{ color: C.red, fontSize: 13, padding: 16 }}>Could not analyze. Try again.</div>
+        : <div style={{ marginTop: 16 }}>
+            <div style={{ background: `${confColor(res.confidence)}12`, border: `1px solid ${confColor(res.confidence)}66`, borderRadius: 10, padding: "15px 17px", marginBottom: 12 }}>
+              <div style={{ fontSize: 9, color: confColor(res.confidence), letterSpacing: 2, marginBottom: 6 }}>VERDICT · {String(res.confidence || "").toUpperCase()} CONFIDENCE</div>
+              <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 24, color: confColor(res.confidence) }}>{res.verdict}</div>
+            </div>
+            {res.dataNote && <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: "13px 15px", marginBottom: 12 }}><div style={{ fontSize: 9, color: C.accent, letterSpacing: 2, marginBottom: 6 }}>WHAT YOUR DATA SAYS</div><div style={{ fontSize: 13, color: C.text, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{res.dataNote}</div></div>}
+            {Array.isArray(res.reasons) && res.reasons.length > 0 && (
+              <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: "13px 15px", marginBottom: 12 }}>
+                <div style={{ fontSize: 9, color: C.accent, letterSpacing: 2, marginBottom: 8 }}>REASONS</div>
+                {res.reasons.map((r, i) => (<div key={i} style={{ display: "flex", gap: 10, marginBottom: 6 }}><div style={{ width: 6, height: 6, borderRadius: "50%", background: C.accent, flexShrink: 0, marginTop: 6 }} /><div style={{ fontSize: 13, lineHeight: 1.6 }}>{r}</div></div>))}
+              </div>
+            )}
+            {res.rulesCheck && <div style={{ background: `${C.gold}0a`, border: `1px solid ${C.gold}33`, borderRadius: 10, padding: "13px 15px", marginBottom: 12 }}><div style={{ fontSize: 9, color: C.gold, letterSpacing: 2, marginBottom: 6 }}>8 RULES CHECK</div><div style={{ fontSize: 13, color: C.text, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{res.rulesCheck}</div></div>}
+            {res.similar && res.similar.length > 0 && (
+              <div>
+                <SLabel>SIMILAR CASES FROM YOUR LIBRARY</SLabel>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 12 }}>
+                  {res.similar.map(i => { const e = patternLib[i]; if (!e) return null; const v = setupLibV(e.verdict, e.sub_verdict); return (
+                    <a key={e.id || i} href={e.image_url || "#"} target="_blank" rel="noreferrer" style={{ textDecoration: "none", background: C.panel, border: `1px solid ${C.border}`, borderLeft: `3px solid ${v.c}`, borderRadius: 10, overflow: "hidden", display: "block" }}>
+                      {e.image_url ? <img src={e.image_url} alt="" style={{ width: "100%", height: 120, objectFit: "cover", display: "block", background: C.bg }} /> : <div style={{ height: 120, background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", color: C.muted, fontSize: 11 }}>no image</div>}
+                      <div style={{ padding: "10px 12px" }}>
+                        <div style={{ fontSize: 10, color: v.c, fontWeight: 700 }}>{v.t}</div>
+                        <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 16, letterSpacing: 1, marginTop: 3, color: C.text }}>{setupPatLabel(e.pattern_type)}</div>
+                        {e.direction && <div style={{ fontSize: 10, color: C.dim, marginTop: 1 }}>{e.direction}{e.pair ? ` · ${e.pair}` : ""}</div>}
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 8 }}>{(e.rules || []).map(r => <span key={r} style={{ fontSize: 10, padding: "1px 6px", borderRadius: 4, border: `1px solid ${C.border}`, color: C.accent }}>R{r}</span>)}</div>
+                      </div>
+                    </a>
+                  ); })}
+                </div>
+              </div>
+            )}
+            <div style={{ fontSize: 11, color: C.muted, marginTop: 14, lineHeight: 1.6, fontStyle: "italic" }}>A second opinion from your own history — not a signal. You make the call.</div>
+          </div>
+      )}
+    </div>
+  );
+}
+
 
 function PairsLog({ pairs, onEdit }) {
   if (!pairs.length) return (
