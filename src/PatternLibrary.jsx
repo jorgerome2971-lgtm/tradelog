@@ -237,6 +237,7 @@ export default function PatternLibrary({ supaUrl, supaKey }) {
           <input value={aiQ} onChange={e => setAiQ(e.target.value)} onKeyDown={e => { if (e.key === "Enter") runAISearch(); }}
             placeholder='e.g. "invalid bull flags where I broke R2" or "what do my valid triangles share?"'
             style={{ flex: 1, minWidth: 220, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "Inter, sans-serif", fontSize: 13 }} />
+          <MicButton onText={t => setAiQ(v => (v ? v + " " : "") + t)} />
           <Btn onClick={runAISearch} disabled={aiSearching || !aiQ.trim() || !allEntries.length}>{aiSearching ? "Searching..." : "Ask"}</Btn>
           {aiRes && !aiSearching && <Btn ghost onClick={() => { setAiRes(null); setAiQ(""); }}>Clear</Btn>}
         </div>
