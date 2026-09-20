@@ -79,10 +79,33 @@ function Modal({ title, onClose, children }) {
   );
 }
 
+function MicButton({ onText, lang = "es-ES" }) {
+  const [listening, setListening] = useState(false);
+  const [recRef] = useState(() => ({ r: null }));
+  const SR = typeof window !== "undefined" ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null;
+  if (!SR) return null;
+  const toggle = () => {
+    if (listening && recRef.r) { recRef.r.stop(); return; }
+    const r = new SR(); r.lang = lang; r.continuous = true; r.interimResults = false;
+    r.onresult = (e) => { let txt = ""; for (let i = e.resultIndex; i < e.results.length; i++) { if (e.results[i].isFinal) txt += e.results[i][0].transcript; } if (txt) onText(txt.trim()); };
+    r.onend = () => setListening(false);
+    r.onerror = () => setListening(false);
+    try { r.start(); recRef.r = r; setListening(true); } catch (err) { setListening(false); }
+  };
+  return (
+    <button type="button" onClick={toggle} title="Dictar por voz" style={{ background: listening ? C.accent : C.bg, color: listening ? C.bg : C.accent, border: `1px solid ${C.accent}`, borderRadius: 8, padding: "7px 12px", cursor: "pointer", fontSize: 12, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 6 }}>
+      {listening ? "● Recording…" : "🎤 Speak"}
+    </button>
+  );
+}
+
 function TA({ label, value, onChange, placeholder, rows }) {
   return (
     <div style={{ marginBottom: 13 }}>
-      <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>{label}</div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
+        <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2 }}>{label}</div>
+        <MicButton onText={t => onChange((value ? value + " " : "") + t)} />
+      </div>
       <textarea value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} rows={rows || 2}
         style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "Inter, sans-serif", resize: "vertical" }} />
     </div>
