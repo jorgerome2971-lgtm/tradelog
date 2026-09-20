@@ -751,6 +751,7 @@ function Compass({ trades, stats, patName, backtests, patternLib, aiResult, setA
       <SLabel>💬 ASK YOUR DATA</SLabel>
       <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: "15px 17px", marginBottom: 22 }}>
         <div style={{ fontSize: 12, color: C.dim, marginBottom: 10, lineHeight: 1.6 }}>Ask anything about your own trades, backtests and library — e.g. "Why do I lose on Tuesdays?", "What's my best setup?", "Which rule do I break most when losing?"</div>
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}><MicButton onText={t => setQuestion(v => (v ? v + " " : "") + t)} /></div>
         <textarea value={question} onChange={e => setQuestion(e.target.value)} placeholder="Type your question..." rows={2}
           style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "Inter, sans-serif", fontSize: 13, resize: "vertical", marginBottom: 10 }} />
         <div style={{ display: "flex", justifyContent: "flex-end" }}>
@@ -1012,6 +1013,7 @@ function SetupCheck({ trades, backtests, patternLib, patName, reflections }) {
 
       <div style={{ marginBottom: 13 }}>
         <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>WHAT ARE YOU SEEING? (describe it)</div>
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}><MicButton onText={t => setNotes(v => (v ? v + " " : "") + t)} /></div>
         <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder="e.g. Triangle broke the line but hasn't broken the previous low yet; price pulling back into the pattern..." style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "Inter, sans-serif", resize: "vertical" }} />
       </div>
 
@@ -1110,6 +1112,7 @@ function PairModal({ pair, onClose, onSave, onDelete }) {
       <Inp label="SYMBOL" value={symbol} onChange={setSymbol} placeholder="e.g. EUR/USD, XAU/USD, US30" />
       <div style={{ marginBottom: 13 }}>
         <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>NOTES (optional)</div>
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}><MicButton onText={t => setDescription(v => (v ? v + " " : "") + t)} /></div>
         <textarea value={description} onChange={e => setDescription(e.target.value)}
           placeholder="e.g. Best during London session, high volatility..."
           rows={3} style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "Inter, sans-serif", resize: "vertical" }} />
@@ -1188,7 +1191,10 @@ function AccountModal({ account, onClose, onSave, onDelete }) {
 function TA({ label, value, onChange, placeholder, rows, color }) {
   return (
     <div style={{ marginBottom: 13 }}>
-      <div style={{ fontSize: 9, color: color || C.dim, letterSpacing: 2, marginBottom: 5 }}>{label}</div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
+        <div style={{ fontSize: 9, color: color || C.dim, letterSpacing: 2 }}>{label}</div>
+        <MicButton onText={t => onChange((value ? value + " " : "") + t)} />
+      </div>
       <textarea value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} rows={rows || 3}
         style={{ width: "100%", background: C.bg, border: `1px solid ${color ? color + "44" : C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "Inter, sans-serif", resize: "vertical" }} />
     </div>
@@ -1423,6 +1429,7 @@ function PatternModal({ pattern, onClose, onSave, onDelete }) {
       <Inp label="PAIRS (comma separated)" value={pairs} onChange={setPairs} placeholder="EUR/USD, GBP/USD..." />
       <div style={{ marginBottom: 13 }}>
         <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>DESCRIPTION</div>
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}><MicButton onText={t => setDescription(v => (v ? v + " " : "") + t)} /></div>
         <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="What conditions must be met?" rows={3}
           style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "Inter, sans-serif", resize: "vertical" }} />
       </div>
@@ -1721,7 +1728,8 @@ function WithdrawalModal({ withdrawal, accounts, onClose, onSave, onDelete }) {
           {firmAmt && <div style={{ fontSize: 13, color: C.gold }}>Firm share: <strong>{fmt(parseFloat(firmAmt))}</strong></div>}
         </div>
       )}
-      <div style={{ marginBottom: 13 }}><div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>NOTES (optional)</div><textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Monthly withdrawal, payout #3..." rows={2} style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "Inter, sans-serif", resize: "vertical" }} /></div>
+      <div style={{ marginBottom: 13 }}><div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>NOTES (optional)</div><div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}><MicButton onText={t => setNotes(v => (v ? v + " " : "") + t)} /></div>
+        <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Monthly withdrawal, payout #3..." rows={2} style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "Inter, sans-serif", resize: "vertical" }} /></div>
       <div style={{ display: "flex", gap: 10 }}><Btn onClick={save} full>Save Withdrawal</Btn>{w.id && <Btn danger onClick={() => { if (confirm("Delete?")) onDelete(w.id); }}>Delete</Btn>}</div>
     </Modal>
   );
@@ -2231,10 +2239,12 @@ function BacktestModal({ backtest, patterns, pairs, onClose, onSave, onDelete })
       </div>
       <div style={{ marginBottom: 13 }}>
         <div style={{ fontSize: 9, color: C.gold, letterSpacing: 2, marginBottom: 5 }}>WHY DIDN'T YOU TAKE IT? (or what did you learn?)</div>
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}><MicButton onText={t => setReason(v => (v ? v + " " : "") + t)} /></div>
         <textarea value={reason} onChange={e => setReason(e.target.value)} placeholder="Was too late to enter? Didn't trust the setup? Missed the entry? What would you do differently?" rows={3} style={{ width: "100%", background: C.bg, border: `1px solid ${C.gold}44`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "Inter, sans-serif", resize: "vertical" }} />
       </div>
       <div style={{ marginBottom: 13 }}>
         <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>ANALYSIS NOTES</div>
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}><MicButton onText={t => setNotes(v => (v ? v + " " : "") + t)} /></div>
         <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="What did you observe? What worked in theory?" rows={3} style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "Inter, sans-serif", resize: "vertical" }} />
       </div>
       <Inp label="TRADINGVIEW LINK (optional)" value={tvLink} onChange={setTvLink} placeholder="https://..." />
