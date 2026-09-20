@@ -130,6 +130,7 @@ function NavIcon({ id }) {
     links: <><path d="M10 13 a5 5 0 0 0 7 0 l2 -2 a5 5 0 0 0 -7 -7 l-1 1" /><path d="M14 11 a5 5 0 0 0 -7 0 l-2 2 a5 5 0 0 0 7 7 l1 -1" /></>,
     firms: <><path d="M4 21 V4.5 A1.5 1.5 0 0 1 5.5 3 h9 A1.5 1.5 0 0 1 16 4.5 V21" /><path d="M16 9 h3.5 A1.5 1.5 0 0 1 21 10.5 V21" /><line x1="2.5" y1="21" x2="21.5" y2="21" /><line x1="8" y1="7" x2="8" y2="7" /><line x1="12" y1="7" x2="12" y2="7" /><line x1="8" y1="11" x2="8" y2="11" /><line x1="12" y1="11" x2="12" y2="11" /><line x1="8" y1="15" x2="8" y2="15" /><line x1="12" y1="15" x2="12" y2="15" /></>,
     setupcheck: <><circle cx="11" cy="11" r="7" /><line x1="16.5" y1="16.5" x2="21" y2="21" /><polyline points="8 11 10.3 13.3 14.5 8.6" /></>,
+    reflections: <><path d="M6 3 h9 l4 4 v13 a1 1 0 0 1 -1 1 H6 a1 1 0 0 1 -1 -1 V4 a1 1 0 0 1 1 -1 Z" /><path d="M15 3 v4 h4" /><line x1="9" y1="12" x2="16" y2="12" /><line x1="9" y1="16" x2="14" y2="16" /></>,
   }[id];
   return <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{p}</svg>;
 }
@@ -145,6 +146,7 @@ export default function App() {
   const [backtests, setBacktests] = useState([]);
   const [withdrawals, setWithdrawals] = useState([]);
   const [patternLib, setPatternLib] = useState([]);
+  const [reflections, setReflections] = useState([]);
   const [roundTables, setRoundTables] = useState(null);
   const [modal, setModal] = useState(null);
   const [aiResult, setAiResult] = useState(null);
@@ -182,7 +184,7 @@ export default function App() {
   useEffect(() => {
     const load = async () => {
       try {
-        const [a, t, p, pr, bt, wd, pl] = await Promise.all([dbGet("accounts"), dbGet("trades"), dbGet("patterns"), dbGet("pairs"), dbGet("backtests").catch(() => []), dbGet("withdrawals").catch(() => []), dbGet("pattern_library").catch(() => [])]);
+        const [a, t, p, pr, bt, wd, pl, rf] = await Promise.all([dbGet("accounts"), dbGet("trades"), dbGet("patterns"), dbGet("pairs"), dbGet("backtests").catch(() => []), dbGet("withdrawals").catch(() => []), dbGet("pattern_library").catch(() => []), dbGet("reflections").catch(() => [])]);
         if (Array.isArray(a)) setAccounts(a.map(r => ({id:r.id, name:r.name, broker:r.broker, size:r.size, currency:r.currency, maxDaily:r.max_daily, maxDrawdown:r.max_drawdown, myPct:r.my_pct||"", firmPct:r.firm_pct||""})));
         if (Array.isArray(t)) setTrades(t.map(r => ({id:r.id, accountId:r.account_id, date:r.date, day:r.day, time:r.time, session:r.session, pair:r.pair, type:r.type, patternId:r.pattern_id, timeframe:r.timeframe, result:r.result, pnl:parseFloat(r.pnl)||0, riskPct:r.risk_pct, riskAmount:r.risk_amount, emotion:r.emotion, entryLink:r.entry_link, exitLink:r.exit_link, entryNotes:r.entry_notes, exitNotes:r.exit_notes, mistakes:r.mistakes, rules:r.rules||[]})));
         if (Array.isArray(p)) setPatterns(p.map(r => ({id:r.id, name:r.name, timeframe:r.timeframe, session:r.session, pairs:r.pairs, description:r.description, rules:r.rules, confirmations:r.confirmations, imageLink:r.image_link})));
@@ -190,6 +192,7 @@ export default function App() {
         if (Array.isArray(bt)) setBacktests(bt.map(r => ({id:r.id, date:r.date, pair:r.pair, type:r.type, patternId:r.pattern_id, timeframe:r.timeframe, result:r.result, pnl:parseFloat(r.pnl)||0, session:r.session, notes:r.notes||"", reason:r.reason||"", tvLink:r.tradingview_link||"", rules:r.rules||[]})));
         if (Array.isArray(wd)) setWithdrawals(wd.map(r => ({id:r.id, accountId:r.account_id, date:r.date, amount:parseFloat(r.amount)||0, myPct:r.my_pct||"", firmPct:r.firm_pct||"", notes:r.notes||""})));
         if (Array.isArray(pl)) setPatternLib(pl);
+        if (Array.isArray(rf)) setReflections(rf.map(r => ({id:r.id, text:r.text, category:r.category||"", pair:r.pair||"", timeframe:r.timeframe||"", created_at:r.created_at})));
       } catch (e) { setSaveStatus("⚠ Connection error"); }
       try {
         const rt = await dbGet("round_tables").catch(() => []);
@@ -286,6 +289,17 @@ export default function App() {
     setTimeout(() => setSaveStatus(""), 2000);
   };
 
+  const saveReflections = async (data) => {
+    const prev = reflections; setReflections(data); setSaveStatus("Saving...");
+    try {
+      const deleted = prev.filter(r => !data.find(d => d.id === r.id));
+      await Promise.all(deleted.map(r => dbDelete("reflections", r.id)));
+      if (data.length) await dbUpsert("reflections", data.map(r => ({ id:r.id, text:r.text, category:r.category||null, pair:r.pair||null, timeframe:r.timeframe||null, created_at:r.created_at||new Date().toISOString() })));
+      setSaveStatus("✓ Saved");
+    } catch { setSaveStatus("⚠ Save error"); }
+    setTimeout(() => setSaveStatus(""), 2000);
+  };
+
   const saveRoundTables = async (data) => {
     setRoundTables(data);
     setSaveStatus("Saving...");
@@ -329,6 +343,7 @@ export default function App() {
     { id: "rounds", icon: "🥊", label: "Fight Rounds" },
     { id: "compass", icon: "🧭", label: "AI Compass" },
     { id: "setupcheck", icon: "🔦", label: "Setup Check" },
+    { id: "reflections", icon: "📝", label: "Reflections" },
     { id: "accounts", icon: "💼", label: "Accounts" },
     { id: "withdrawals", icon: "💸", label: "Withdrawals" },
     { id: "library", icon: "📚", label: "Patterns Library" },
@@ -376,7 +391,7 @@ export default function App() {
           <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
             <button className="tus-hamburger" onClick={() => setMenuOpen(true)} style={{ background: "transparent", border: "none", color: C.accent, fontSize: 24, cursor: "pointer", padding: 0, lineHeight: 1 }}>☰</button>
             <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 20, letterSpacing: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {{ dashboard: "DASHBOARD", trades: "TRADE LOG", patterns: "PATTERNS", pairs: "MY PAIRS", charts: "CHARTS", backtest: "BACKTESTING", rounds: "FIGHT ROUNDS", compass: "AI COMPASS", setupcheck: "SETUP CHECK", accounts: "ACCOUNTS", withdrawals: "WITHDRAWALS", library: "PATTERNS LIBRARY", links: "STUDY LINKS", firms: "MY FIRMS" }[tab]}
+              {{ dashboard: "DASHBOARD", trades: "TRADE LOG", patterns: "PATTERNS", pairs: "MY PAIRS", charts: "CHARTS", backtest: "BACKTESTING", rounds: "FIGHT ROUNDS", compass: "AI COMPASS", setupcheck: "SETUP CHECK", reflections: "REFLECTIONS", accounts: "ACCOUNTS", withdrawals: "WITHDRAWALS", library: "PATTERNS LIBRARY", links: "STUDY LINKS", firms: "MY FIRMS" }[tab]}
             </div>
           </div>
           <div style={{ display: "flex", gap: 10 }}>
@@ -398,7 +413,8 @@ export default function App() {
           {tab === "trades" && <TradeLog trades={trades} acctName={acctName} patName={patName} onView={id => setModal({ type: "view-trade", id })} />}
           {tab === "patterns" && <PatternLog patterns={patterns} trades={trades} onView={id => setModal({ type: "view-pattern", id })} />}
           {tab === "compass" && <Compass trades={trades} stats={stats} patName={patName} backtests={backtests} patternLib={patternLib} aiResult={aiResult} setAiResult={setAiResult} aiLoading={aiLoading} setAiLoading={setAiLoading} />}
-          {tab === "setupcheck" && <SetupCheck trades={trades} backtests={backtests} patternLib={patternLib} patName={patName} />}
+          {tab === "setupcheck" && <SetupCheck trades={trades} backtests={backtests} patternLib={patternLib} patName={patName} reflections={reflections} />}
+          {tab === "reflections" && <Reflections reflections={reflections} onSave={saveReflections} />}
           {tab === "pairs" && <PairsLog pairs={pairs} onEdit={id => setModal({ type: "pair", id })} />}
           {tab === "charts" && <Charts trades={trades} accounts={accounts} acctName={acctName} />}
           {tab === "backtest" && <BacktestLog backtests={backtests} trades={trades} patterns={patterns} patName={patName} pairs={pairs} onView={id => setModal({ type: "view-backtest", id })} />}
@@ -801,7 +817,129 @@ const SETUP_PATTERNS = [
 const setupPatLabel = (v) => (SETUP_PATTERNS.find(p => p.value === v) || {}).label || v;
 const setupLibV = (verdict, sub) => verdict === "no_es" ? { c: C.red, t: "INVALID" } : (sub === "casi_perfecto" ? { c: C.gold, t: "VALID · near" } : { c: C.green, t: "VALID" });
 
-function SetupCheck({ trades, backtests, patternLib, patName }) {
+function MicButton({ onText, lang = "es-ES" }) {
+  const [listening, setListening] = useState(false);
+  const [recRef] = useState(() => ({ r: null }));
+  const SR = typeof window !== "undefined" ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null;
+  if (!SR) return null;
+  const toggle = () => {
+    if (listening && recRef.r) { recRef.r.stop(); return; }
+    const r = new SR(); r.lang = lang; r.continuous = true; r.interimResults = false;
+    r.onresult = (e) => { let txt = ""; for (let i = e.resultIndex; i < e.results.length; i++) { if (e.results[i].isFinal) txt += e.results[i][0].transcript; } if (txt) onText(txt.trim()); };
+    r.onend = () => setListening(false);
+    r.onerror = () => setListening(false);
+    try { r.start(); recRef.r = r; setListening(true); } catch (err) { setListening(false); }
+  };
+  return (
+    <button type="button" onClick={toggle} title="Dictar por voz" style={{ background: listening ? C.accent : C.bg, color: listening ? C.bg : C.accent, border: `1px solid ${C.accent}`, borderRadius: 8, padding: "7px 12px", cursor: "pointer", fontSize: 12, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 6 }}>
+      {listening ? "● Recording…" : "🎤 Speak"}
+    </button>
+  );
+}
+
+const REFL_CATS = ["Technical", "Psychological", "General"];
+
+function Reflections({ reflections, onSave }) {
+  const [text, setText] = useState("");
+  const [cat, setCat] = useState("Technical");
+  const [pair, setPair] = useState("");
+  const [tf, setTf] = useState("");
+  const [q, setQ] = useState("");
+  const [aiQ, setAiQ] = useState("");
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiRes, setAiRes] = useState(null);
+  const add = () => {
+    if (!text.trim()) return;
+    onSave([...reflections, { id: uid(), text: text.trim(), category: cat, pair: pair.trim(), timeframe: tf, created_at: new Date().toISOString() }]);
+    setText(""); setPair(""); setTf("");
+  };
+  const del = (id) => { if (confirm("Delete this reflection?")) onSave(reflections.filter(r => r.id !== id)); };
+  const runAsk = async () => {
+    const qq = aiQ.trim(); if (!qq || !reflections.length) return;
+    setAiBusy(true); setAiRes(null);
+    try {
+      const data = reflections.map((r, i) => ({ i, text: (r.text || "").slice(0, 240), category: r.category, pair: r.pair, tf: r.timeframe, date: (r.created_at || "").slice(0, 10) }));
+      const prompt = "You are helping a trader search and reason over THEIR OWN reflections (personal trading notes). Answer their question directly in English, plain text, no markdown, no preamble. Reply ONLY with valid JSON: {\"answer\":\"2-5 sentence answer synthesizing what they noted\",\"matches\":[indices of the reflections most relevant to the question, most relevant first]}. If nothing fits, say so plainly and use an empty matches array. REFLECTIONS: " + JSON.stringify(data) + " QUESTION: " + qq;
+      const r = await fetch("/.netlify/functions/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 900, messages: [{ role: "user", content: prompt }] }) });
+      if (!r.ok) throw new Error("s" + r.status);
+      const d = await r.json();
+      let txt = (d.content || []).map(b => b.text || "").join("").trim().replace(/```json|```/g, "").trim();
+      const parsed = JSON.parse(txt.substring(txt.indexOf("{"), txt.lastIndexOf("}") + 1));
+      parsed.matches = Array.isArray(parsed.matches) ? parsed.matches.filter(n => Number.isInteger(n) && n >= 0 && n < reflections.length) : [];
+      setAiRes(parsed);
+    } catch (e) { setAiRes("__ERROR__"); }
+    setAiBusy(false);
+  };
+  const catColor = (c) => c === "Psychological" ? C.gold : c === "General" ? C.dim : C.accent;
+  const list = [...reflections].reverse().filter(r => !q || (r.text || "").toLowerCase().includes(q.toLowerCase()) || (r.pair || "").toLowerCase().includes(q.toLowerCase()));
+  return (
+    <div style={{ maxWidth: 760 }}>
+      <div style={{ background: `${C.accent}0a`, border: `1px solid ${C.accent}44`, borderRadius: 10, padding: "12px 15px", marginBottom: 16, fontSize: 12, color: C.dim, lineHeight: 1.6 }}>
+        📝 Your trading notebook — pure thoughts, no charts or links. Jot technical or psychological observations worth remembering. Setup Check reads these and flags any that fit the trade you're weighing.
+      </div>
+      <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, marginBottom: 18 }}>
+        <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
+          <Sel label="TYPE" value={cat} onChange={setCat} options={REFL_CATS} placeholder="" />
+          <div style={{ marginBottom: 13 }}>
+            <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>PAIR (optional)</div>
+            <input value={pair} onChange={e => setPair(e.target.value)} placeholder="e.g. GBP/NZD" style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "Inter, sans-serif" }} />
+          </div>
+          <Sel label="TIMEFRAME (optional)" value={tf} onChange={setTf} options={TIMEFRAMES} />
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
+          <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2 }}>YOUR REFLECTION</div>
+          <MicButton onText={(t) => setText(v => (v ? v + " " : "") + t)} />
+        </div>
+        <textarea value={text} onChange={e => setText(e.target.value)} rows={4} placeholder="e.g. When the 4H structure is much larger than the 1H pattern, the setup tends to fail — keep an eye on that..." style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "10px 12px", borderRadius: 6, fontSize: 13, fontFamily: "Inter, sans-serif", resize: "vertical", marginBottom: 12 }} />
+        <Btn onClick={add} disabled={!text.trim()} full>+ Save reflection</Btn>
+      </div>
+      <div style={{ background: C.panel, border: `1px solid ${C.accent}44`, borderRadius: 10, padding: "14px 16px", marginBottom: 16 }}>
+        <div style={{ fontSize: 9, color: C.accent, letterSpacing: 2, marginBottom: 8 }}>💬 ASK YOUR REFLECTIONS</div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <input value={aiQ} onChange={e => setAiQ(e.target.value)} onKeyDown={e => { if (e.key === "Enter") runAsk(); }} placeholder='e.g. "what have I noted about 4H structure?" or "my notes on discipline"' style={{ flex: 1, minWidth: 220, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "Inter, sans-serif", fontSize: 13 }} />
+          <Btn onClick={runAsk} disabled={aiBusy || !aiQ.trim() || !reflections.length}>{aiBusy ? "Thinking..." : "Ask"}</Btn>
+          {aiRes && !aiBusy && <Btn ghost onClick={() => { setAiRes(null); setAiQ(""); }}>Clear</Btn>}
+        </div>
+        {aiBusy && <div style={{ textAlign: "center", padding: "16px 0" }}><div style={{ width: 26, height: 26, border: `3px solid ${C.border}`, borderTopColor: C.accent, borderRadius: "50%", animation: "spin .9s linear infinite", margin: "0 auto" }} /></div>}
+        {aiRes && !aiBusy && (aiRes === "__ERROR__"
+          ? <div style={{ color: C.red, fontSize: 13, marginTop: 10 }}>Could not search. Try again.</div>
+          : <div style={{ marginTop: 12 }}>
+              <div style={{ fontSize: 13, color: C.text, lineHeight: 1.7, whiteSpace: "pre-wrap", marginBottom: aiRes.matches.length ? 12 : 0 }}>{aiRes.answer}</div>
+              {aiRes.matches.map(i => { const r = reflections[i]; if (!r) return null; return (
+                <div key={r.id || i} style={{ background: C.bg, border: `1px solid ${C.border}`, borderLeft: `3px solid ${catColor(r.category)}`, borderRadius: 8, padding: "10px 13px", marginBottom: 6 }}>
+                  <div style={{ display: "flex", gap: 8, marginBottom: 5, flexWrap: "wrap", alignItems: "center" }}>
+                    <span style={{ fontSize: 9, letterSpacing: 1, color: catColor(r.category) }}>{(r.category || "NOTE").toUpperCase()}</span>
+                    {r.pair && <span style={{ fontSize: 10, color: C.dim }}>{r.pair}</span>}
+                    {r.timeframe && <span style={{ fontSize: 10, color: C.dim }}>· {r.timeframe}</span>}
+                    <span style={{ fontSize: 10, color: C.muted, marginLeft: "auto" }}>{(r.created_at || "").slice(0, 10)}</span>
+                  </div>
+                  <div style={{ fontSize: 13, color: C.text, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{r.text}</div>
+                </div>
+              ); })}
+            </div>)}
+      </div>
+      {reflections.length > 0 && (
+        <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search your reflections..." style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 8, fontSize: 12, fontFamily: "Inter, sans-serif", marginBottom: 14 }} />
+      )}
+      {list.length === 0 ? <Empty text="No reflections yet. Write your first one above." />
+        : list.map(r => (
+          <div key={r.id} style={{ background: C.panel, border: `1px solid ${C.border}`, borderLeft: `3px solid ${catColor(r.category)}`, borderRadius: 10, padding: "13px 15px", marginBottom: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 9, letterSpacing: 1, color: catColor(r.category), border: `1px solid ${catColor(r.category)}55`, borderRadius: 4, padding: "2px 7px" }}>{(r.category || "NOTE").toUpperCase()}</span>
+              {r.pair && <span style={{ fontSize: 10, color: C.dim }}>{r.pair}</span>}
+              {r.timeframe && <span style={{ fontSize: 10, color: C.dim }}>· {r.timeframe}</span>}
+              <span style={{ fontSize: 10, color: C.muted, marginLeft: "auto" }}>{(r.created_at || "").slice(0, 10)}</span>
+              <button onClick={() => del(r.id)} style={{ background: "transparent", border: "none", color: C.muted, cursor: "pointer", fontSize: 14 }}>✕</button>
+            </div>
+            <div style={{ fontSize: 13, color: C.text, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{r.text}</div>
+          </div>
+        ))}
+    </div>
+  );
+}
+
+
+function SetupCheck({ trades, backtests, patternLib, patName, reflections }) {
   const [pair, setPair] = useState("");
   const [direction, setDirection] = useState("bear");
   const [ptype, setPtype] = useState("bull_flag");
@@ -827,9 +965,10 @@ function SetupCheck({ trades, backtests, patternLib, patName }) {
       const lib = patternLib.map((e, i) => ({ i, pattern: e.pattern_type, pair: e.pair, dir: e.direction, verdict: e.verdict === "no_es" ? "INVALID" : "VALID", sub: e.sub_verdict, rules: e.rules, why: (e.description || "").slice(0, 180) }));
       const realD = trades.slice(-40).map(t => ({ pair: t.pair, type: t.type, pattern: patName(t.patternId), result: t.result, pnl: t.pnl, rules: t.rules, emotion: t.emotion }));
       const btD = backtests.slice(-30).map(b => ({ pair: b.pair, type: b.type, pattern: patName(b.patternId), result: b.result, rules: b.rules }));
+      const refl = (reflections || []).slice(-30).map(r => ({ text: (r.text || "").slice(0, 220), category: r.category, pair: r.pair, tf: r.timeframe }));
       const setup = { pair: pair || "unspecified", direction, pattern: setupPatLabel(ptype), timeframe: tf, session: session || "unspecified", rulesMet: rules, notes: notes || "none" };
       const stats = { realForThisPairDir: { wins: rtW, losses: rtL }, backtestForThisPairDir: { wins: btW, losses: btL }, libraryForThisPattern: { valid: libValid, invalid: libInvalid } };
-      const prompt = "You are an expert forex trading coach giving a SECOND OPINION on a setup the trader is considering RIGHT NOW, based ONLY on their own logged history. Be honest and specific; if the data is thin, say so plainly. This is decision-support, not a signal - the trader makes the final call. Reply ONLY with valid JSON, no markdown, no preamble, exactly this shape: {\"verdict\":\"short punchy label\",\"confidence\":\"strong|moderate|weak|mixed\",\"reasons\":[\"...\",\"...\"],\"rulesCheck\":\"one short paragraph on the 8 rules for this setup\",\"dataNote\":\"what their real trades + backtests + library say about this pattern/pair/direction, cite numbers\",\"similar\":[indices of the most similar LIBRARY cases, most relevant first]}. RULE_LEGEND: " + JSON.stringify(TRADE_RULES) + " SETUP_BEING_CONSIDERED: " + JSON.stringify(setup) + " HARD_STATS: " + JSON.stringify(stats) + " LIBRARY: " + JSON.stringify(lib) + " REAL_TRADES: " + JSON.stringify(realD) + " BACKTESTS: " + JSON.stringify(btD);
+      const prompt = "You are an expert forex trading coach giving a SECOND OPINION on a setup the trader is considering RIGHT NOW, based ONLY on their own logged history. Be honest and specific; if the data is thin, say so plainly. This is decision-support, not a signal - the trader makes the final call. Reply ONLY with valid JSON, no markdown, no preamble, exactly this shape: {\"verdict\":\"short punchy label\",\"confidence\":\"strong|moderate|weak|mixed\",\"reasons\":[\"...\",\"...\"],\"rulesCheck\":\"one short paragraph on the 8 rules for this setup\",\"dataNote\":\"what their real trades + backtests + library say about this pattern/pair/direction, cite numbers\",\"similar\":[indices of the most similar LIBRARY cases, most relevant first],\"fromYourReflections\":\"if any of the trader's REFLECTIONS is relevant to THIS setup, quote or paraphrase it and note it came from their own reflections; otherwise empty string\"}. RULE_LEGEND: " + JSON.stringify(TRADE_RULES) + " SETUP_BEING_CONSIDERED: " + JSON.stringify(setup) + " HARD_STATS: " + JSON.stringify(stats) + " LIBRARY: " + JSON.stringify(lib) + " REFLECTIONS: " + JSON.stringify(refl) + " REAL_TRADES: " + JSON.stringify(realD) + " BACKTESTS: " + JSON.stringify(btD);
       const r = await fetch("/.netlify/functions/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 1100, messages: [{ role: "user", content: prompt }] }) });
       if (!r.ok) throw new Error("s" + r.status);
       const d = await r.json();
@@ -908,6 +1047,7 @@ function SetupCheck({ trades, backtests, patternLib, patName }) {
               </div>
             )}
             {res.rulesCheck && <div style={{ background: `${C.gold}0a`, border: `1px solid ${C.gold}33`, borderRadius: 10, padding: "13px 15px", marginBottom: 12 }}><div style={{ fontSize: 9, color: C.gold, letterSpacing: 2, marginBottom: 6 }}>8 RULES CHECK</div><div style={{ fontSize: 13, color: C.text, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{res.rulesCheck}</div></div>}
+            {res.fromYourReflections && <div style={{ background: `${C.accent}0f`, border: `1px solid ${C.accent}55`, borderRadius: 10, padding: "13px 15px", marginBottom: 12 }}><div style={{ fontSize: 9, color: C.accent, letterSpacing: 2, marginBottom: 6 }}>📝 FROM YOUR REFLECTIONS</div><div style={{ fontSize: 13, color: C.text, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{res.fromYourReflections}</div></div>}
             {res.similar && res.similar.length > 0 && (
               <div>
                 <SLabel>SIMILAR CASES FROM YOUR LIBRARY</SLabel>
