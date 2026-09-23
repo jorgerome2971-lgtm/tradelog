@@ -941,6 +941,47 @@ function Reflections({ reflections, onSave }) {
 }
 
 
+function jac(a, b) {
+  a = a || []; b = b || [];
+  if (!a.length && !b.length) return 1;
+  const B = new Set(b); let inter = 0; new Set(a).forEach(x => { if (B.has(x)) inter++; });
+  const uni = new Set([...a, ...b]).size; return uni ? inter / uni : 0;
+}
+function setupSim(t, s) {
+  const norm = x => (x || "").toString().trim().toLowerCase();
+  let sc = 0;
+  sc += 0.34 * (norm(t.pattern) === norm(s.pattern) ? 1 : 0);
+  sc += 0.16 * (t.type === s.dirType ? 1 : 0);
+  sc += 0.24 * jac(t.rules, s.rules);
+  sc += 0.10 * (s.pair && t.pair === s.pair ? 1 : 0);
+  sc += 0.08 * (s.tf && t.timeframe === s.tf ? 1 : 0);
+  sc += 0.08 * (s.session && t.session === s.session ? 1 : 0);
+  return sc;
+}
+function wilson(w, n) {
+  if (!n) return [0, 0];
+  const z = 1.96, p = w / n, den = 1 + z * z / n;
+  const centre = (p + z * z / (2 * n)) / den;
+  const half = (z * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n))) / den;
+  return [Math.max(0, centre - half), Math.min(1, centre + half)];
+}
+function computeProb(cases, setup, baseRate) {
+  if (!cases.length) return { n: 0, wins: 0, losses: 0, est: baseRate, low: 0, high: 1, conf: "very low", tier: "no data" };
+  const scored = cases.map(c => ({ c, s: setupSim(c, setup) }));
+  let T = 0.6, tier = "closely similar";
+  let nb = scored.filter(o => o.s >= T);
+  if (nb.length < 6) { T = 0.45; tier = "broadly similar"; nb = scored.filter(o => o.s >= T); }
+  if (nb.length < 4) { T = 0.3; tier = "loosely similar"; nb = scored.filter(o => o.s >= T); }
+  if (nb.length < 3) { nb = scored.filter(o => o.c.type === setup.dirType).map(o => ({ c: o.c, s: o.s })); tier = "same direction"; }
+  const list = nb.map(o => o.c);
+  const n = list.length, wins = list.filter(c => c.win).length, losses = n - wins;
+  const k = 5;
+  const est = n ? (wins + k * baseRate) / (n + k) : baseRate;
+  const [low, high] = wilson(wins, n);
+  const conf = n >= 25 ? "solid" : n >= 12 ? "medium" : n >= 5 ? "low" : "very low";
+  return { n, wins, losses, est, low, high, conf, tier };
+}
+
 function SetupCheck({ trades, backtests, patternLib, patName, reflections }) {
   const [pair, setPair] = useState("");
   const [direction, setDirection] = useState("bear");
@@ -961,6 +1002,16 @@ function SetupCheck({ trades, backtests, patternLib, patName, reflections }) {
   const libSame = patternLib.filter(e => e.pattern_type === ptype);
   const libValid = libSame.filter(e => e.verdict !== "no_es").length, libInvalid = libSame.filter(e => e.verdict === "no_es").length;
 
+  const setupObj = { pattern: setupPatLabel(ptype), dirType, pair: pair.trim(), tf, session, rules };
+  const realCases = trades.filter(t => t.result === "win" || t.result === "loss").map(t => ({ pattern: patName(t.patternId), type: t.type, pair: t.pair, timeframe: t.timeframe, session: t.session, rules: t.rules, win: t.result === "win" }));
+  const baseReal = realCases.length ? realCases.filter(c => c.win).length / realCases.length : 0.5;
+  const prob = computeProb(realCases, setupObj, baseReal);
+  const btCases = backtests.filter(b => b.result === "win" || b.result === "loss").map(b => ({ pattern: patName(b.patternId), type: b.type, pair: b.pair, timeframe: b.timeframe, session: b.session, rules: b.rules, win: b.result === "win" }));
+  const baseBt = btCases.length ? btCases.filter(c => c.win).length / btCases.length : 0.5;
+  const probBt = computeProb(btCases, setupObj, baseBt);
+  const pct = Math.round(prob.est * 100);
+  const probColor = prob.n < 4 ? C.muted : pct >= 55 ? C.green : pct >= 45 ? C.gold : C.red;
+
   const run = async () => {
     setLoading(true); setRes(null);
     try {
@@ -969,8 +1020,8 @@ function SetupCheck({ trades, backtests, patternLib, patName, reflections }) {
       const btD = backtests.slice(-30).map(b => ({ pair: b.pair, type: b.type, pattern: patName(b.patternId), result: b.result, rules: b.rules }));
       const refl = (reflections || []).slice(-30).map(r => ({ text: (r.text || "").slice(0, 220), category: r.category, pair: r.pair, tf: r.timeframe }));
       const setup = { pair: pair || "unspecified", direction, pattern: setupPatLabel(ptype), timeframe: tf, session: session || "unspecified", rulesMet: rules, notes: notes || "none" };
-      const stats = { realForThisPairDir: { wins: rtW, losses: rtL }, backtestForThisPairDir: { wins: btW, losses: btL }, libraryForThisPattern: { valid: libValid, invalid: libInvalid } };
-      const prompt = "You are an expert forex trading coach giving a SECOND OPINION on a setup the trader is considering RIGHT NOW, based ONLY on their own logged history. Be honest and specific; if the data is thin, say so plainly. This is decision-support, not a signal - the trader makes the final call. Reply ONLY with valid JSON, no markdown, no preamble, exactly this shape: {\"verdict\":\"short punchy label\",\"confidence\":\"strong|moderate|weak|mixed\",\"reasons\":[\"...\",\"...\"],\"rulesCheck\":\"one short paragraph on the 8 rules for this setup\",\"dataNote\":\"what their real trades + backtests + library say about this pattern/pair/direction, cite numbers\",\"similar\":[indices of the most similar LIBRARY cases, most relevant first],\"fromYourReflections\":\"if any of the trader's REFLECTIONS is relevant to THIS setup, quote or paraphrase it and note it came from their own reflections; otherwise empty string\"}. RULE_LEGEND: " + JSON.stringify(TRADE_RULES) + " SETUP_BEING_CONSIDERED: " + JSON.stringify(setup) + " HARD_STATS: " + JSON.stringify(stats) + " LIBRARY: " + JSON.stringify(lib) + " REFLECTIONS: " + JSON.stringify(refl) + " REAL_TRADES: " + JSON.stringify(realD) + " BACKTESTS: " + JSON.stringify(btD);
+      const stats = { realForThisPairDir: { wins: rtW, losses: rtL }, backtestForThisPairDir: { wins: btW, losses: btL }, libraryForThisPattern: { valid: libValid, invalid: libInvalid }, statisticalProbability: { estimatePct: pct, nSimilarRealTrades: prob.n, rangeLowPct: Math.round(prob.low * 100), rangeHighPct: Math.round(prob.high * 100), confidence: prob.conf } };
+      const prompt = "You are an expert forex trading coach giving a SECOND OPINION on a setup the trader is considering RIGHT NOW, based ONLY on their own logged history. Be honest and specific; if the data is thin, say so plainly. This is decision-support, not a signal - the trader makes the final call. A STATISTICAL probability was already computed from their real trades and is in HARD_STATS.statisticalProbability; treat that number as the ground truth for probability, reference it in plain words, and never invent a different percentage. Reply ONLY with valid JSON, no markdown, no preamble, exactly this shape: {\"verdict\":\"short punchy label\",\"confidence\":\"strong|moderate|weak|mixed\",\"reasons\":[\"...\",\"...\"],\"rulesCheck\":\"one short paragraph on the 8 rules for this setup\",\"dataNote\":\"what their real trades + backtests + library say about this pattern/pair/direction, cite numbers\",\"similar\":[indices of the most similar LIBRARY cases, most relevant first],\"fromYourReflections\":\"if any of the trader's REFLECTIONS is relevant to THIS setup, quote or paraphrase it and note it came from their own reflections; otherwise empty string\"}. RULE_LEGEND: " + JSON.stringify(TRADE_RULES) + " SETUP_BEING_CONSIDERED: " + JSON.stringify(setup) + " HARD_STATS: " + JSON.stringify(stats) + " LIBRARY: " + JSON.stringify(lib) + " REFLECTIONS: " + JSON.stringify(refl) + " REAL_TRADES: " + JSON.stringify(realD) + " BACKTESTS: " + JSON.stringify(btD);
       const r = await fetch("/.netlify/functions/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 1100, messages: [{ role: "user", content: prompt }] }) });
       if (!r.ok) throw new Error("s" + r.status);
       const d = await r.json();
@@ -1016,6 +1067,26 @@ function SetupCheck({ trades, backtests, patternLib, patName, reflections }) {
         <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>WHAT ARE YOU SEEING? (describe it)</div>
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}><MicButton onText={t => setNotes(v => (v ? v + " " : "") + t)} /></div>
         <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder="e.g. Triangle broke the line but hasn't broken the previous low yet; price pulling back into the pattern..." style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "Inter, sans-serif", resize: "vertical" }} />
+      </div>
+
+      <div style={{ background: `${probColor}12`, border: `1px solid ${probColor}55`, borderRadius: 12, padding: "16px 18px", marginBottom: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+          <div>
+            <div style={{ fontSize: 9, color: C.accent, letterSpacing: 2, marginBottom: 6 }}>📊 PROBABILITY FROM YOUR DATA</div>
+            {prob.n < 4
+              ? <div style={{ fontSize: 14, color: C.muted, lineHeight: 1.5, maxWidth: 430 }}>Not enough similar real trades yet ({prob.n}). Log more and this sharpens.{prob.n > 0 ? ` So far: ${prob.wins}W / ${prob.losses}L.` : ""}</div>
+              : <><div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 52, color: probColor, lineHeight: 1 }}>{pct}<span style={{ fontSize: 24 }}>%</span></div>
+                  <div style={{ fontSize: 12, color: C.dim, marginTop: 4 }}>likely a winner · range {Math.round(prob.low * 100)}–{Math.round(prob.high * 100)}%</div></>}
+          </div>
+          <div style={{ textAlign: "right", minWidth: 130 }}>
+            <div style={{ fontSize: 9, color: C.muted, letterSpacing: 1 }}>BASED ON</div>
+            <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 22, color: C.text }}>{prob.n}</div>
+            <div style={{ fontSize: 10, color: C.dim }}>similar real trades</div>
+            <div style={{ fontSize: 10, color: probColor, marginTop: 4, letterSpacing: 1 }}>confidence: {prob.conf.toUpperCase()}</div>
+          </div>
+        </div>
+        {probBt.n >= 3 && <div style={{ fontSize: 11, color: C.gold, marginTop: 10 }}>Backtests (hypothetical): {Math.round(probBt.est * 100)}% on {probBt.n} similar cases</div>}
+        <div style={{ fontSize: 10, color: C.muted, marginTop: 10, lineHeight: 1.5, fontStyle: "italic" }}>Probability, not certainty — an edge over many trades, not a guarantee on this one. Similarity uses pattern, direction, rules, pair, timeframe &amp; session.</div>
       </div>
 
       <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 14 }}>
