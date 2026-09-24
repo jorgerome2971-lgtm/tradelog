@@ -189,10 +189,10 @@ export default function App() {
       try {
         const [a, t, p, pr, bt, wd, pl, rf, om] = await Promise.all([dbGet("accounts"), dbGet("trades"), dbGet("patterns"), dbGet("pairs"), dbGet("backtests").catch(() => []), dbGet("withdrawals").catch(() => []), dbGet("pattern_library").catch(() => []), dbGet("reflections").catch(() => []), dbGet("omissions").catch(() => [])]);
         if (Array.isArray(a)) setAccounts(a.map(r => ({id:r.id, name:r.name, broker:r.broker, size:r.size, currency:r.currency, maxDaily:r.max_daily, maxDrawdown:r.max_drawdown, myPct:r.my_pct||"", firmPct:r.firm_pct||""})));
-        if (Array.isArray(t)) setTrades(t.map(r => ({id:r.id, accountId:r.account_id, date:r.date, day:r.day, time:r.time, session:r.session, pair:r.pair, type:r.type, patternId:r.pattern_id, timeframe:r.timeframe, result:r.result, pnl:parseFloat(r.pnl)||0, riskPct:r.risk_pct, riskAmount:r.risk_amount, emotion:r.emotion, entryLink:r.entry_link, exitLink:r.exit_link, entryNotes:r.entry_notes, exitNotes:r.exit_notes, mistakes:r.mistakes, rules:r.rules||[]})));
+        if (Array.isArray(t)) setTrades(t.map(r => ({id:r.id, accountId:r.account_id, date:r.date, day:r.day, time:r.time, session:r.session, pair:r.pair, type:r.type, patternId:r.pattern_id, timeframe:r.timeframe, result:r.result, pnl:parseFloat(r.pnl)||0, riskPct:r.risk_pct, riskAmount:r.risk_amount, emotion:r.emotion, entryLink:r.entry_link, exitLink:r.exit_link, entryNotes:r.entry_notes, exitNotes:r.exit_notes, mistakes:r.mistakes, conviction:r.conviction, rules:r.rules||[]})));
         if (Array.isArray(p)) setPatterns(p.map(r => ({id:r.id, name:r.name, timeframe:r.timeframe, session:r.session, pairs:r.pairs, description:r.description, rules:r.rules, confirmations:r.confirmations, imageLink:r.image_link})));
         if (Array.isArray(pr)) setPairs(pr.map(r => ({id:r.id, symbol:r.symbol, description:r.description||""})));
-        if (Array.isArray(bt)) setBacktests(bt.map(r => ({id:r.id, date:r.date, pair:r.pair, type:r.type, patternId:r.pattern_id, timeframe:r.timeframe, result:r.result, pnl:parseFloat(r.pnl)||0, session:r.session, notes:r.notes||"", reason:r.reason||"", tvLink:r.tradingview_link||"", rules:r.rules||[]})));
+        if (Array.isArray(bt)) setBacktests(bt.map(r => ({id:r.id, date:r.date, pair:r.pair, type:r.type, patternId:r.pattern_id, timeframe:r.timeframe, result:r.result, pnl:parseFloat(r.pnl)||0, session:r.session, notes:r.notes||"", reason:r.reason||"", tvLink:r.tradingview_link||"", conviction:r.conviction, rules:r.rules||[]})));
         if (Array.isArray(wd)) setWithdrawals(wd.map(r => ({id:r.id, accountId:r.account_id, date:r.date, amount:parseFloat(r.amount)||0, myPct:r.my_pct||"", firmPct:r.firm_pct||"", notes:r.notes||""})));
         if (Array.isArray(pl)) setPatternLib(pl);
         if (Array.isArray(om)) setOmissions(om);
@@ -237,7 +237,7 @@ export default function App() {
     try {
       const deleted = prev.filter(t => !data.find(d => d.id === t.id));
       await Promise.all(deleted.map(t => dbDelete("trades", t.id)));
-      if (data.length) await dbUpsert("trades", data.map(t => ({id:t.id, account_id:t.accountId||null, date:t.date||null, day:t.day||null, time:t.time||null, session:t.session||null, pair:t.pair||null, type:t.type||null, pattern_id:t.patternId||null, timeframe:t.timeframe||null, result:t.result||"pending", pnl:t.pnl||0, risk_pct:t.riskPct||null, risk_amount:t.riskAmount||null, emotion:t.emotion||null, entry_link:t.entryLink||null, exit_link:t.exitLink||null, entry_notes:t.entryNotes||null, exit_notes:t.exitNotes||null, mistakes:t.mistakes||null, rules:t.rules||[]})));
+      if (data.length) await dbUpsert("trades", data.map(t => ({id:t.id, account_id:t.accountId||null, date:t.date||null, day:t.day||null, time:t.time||null, session:t.session||null, pair:t.pair||null, type:t.type||null, pattern_id:t.patternId||null, timeframe:t.timeframe||null, result:t.result||"pending", pnl:t.pnl||0, risk_pct:t.riskPct||null, risk_amount:t.riskAmount||null, emotion:t.emotion||null, entry_link:t.entryLink||null, exit_link:t.exitLink||null, entry_notes:t.entryNotes||null, exit_notes:t.exitNotes||null, mistakes:t.mistakes||null, conviction:t.conviction||null, rules:t.rules||[]})));
       setSaveStatus("✓ Saved");
     } catch { setSaveStatus("⚠ Save error"); }
     setTimeout(() => setSaveStatus(""), 2000);
@@ -276,7 +276,7 @@ export default function App() {
     try {
       const deleted = prev.filter(b => !data.find(d => d.id === b.id));
       await Promise.all(deleted.map(b => dbDelete("backtests", b.id)));
-      if (data.length) await dbUpsert("backtests", data.map(b => ({id:b.id, date:b.date||null, pair:b.pair||null, type:b.type||null, pattern_id:b.patternId||null, timeframe:b.timeframe||null, result:b.result||"win", pnl:b.pnl||0, session:b.session||null, notes:b.notes||null, reason:b.reason||null, tradingview_link:b.tvLink||null, rules:b.rules||[]})));
+      if (data.length) await dbUpsert("backtests", data.map(b => ({id:b.id, date:b.date||null, pair:b.pair||null, type:b.type||null, pattern_id:b.patternId||null, timeframe:b.timeframe||null, result:b.result||"win", pnl:b.pnl||0, session:b.session||null, notes:b.notes||null, reason:b.reason||null, tradingview_link:b.tvLink||null, conviction:b.conviction||null, rules:b.rules||[]})));
       setSaveStatus("✓ Saved");
     } catch { setSaveStatus("⚠ Save error"); }
     setTimeout(() => setSaveStatus(""), 2000);
@@ -421,7 +421,7 @@ export default function App() {
           {tab === "setupcheck" && <SetupCheck trades={trades} backtests={backtests} patternLib={patternLib} patName={patName} reflections={reflections} />}
           {tab === "reflections" && <Reflections reflections={reflections} onSave={saveReflections} />}
           {tab === "pairs" && <PairsLog pairs={pairs} onEdit={id => setModal({ type: "pair", id })} />}
-          {tab === "charts" && <Charts trades={trades} accounts={accounts} acctName={acctName} />}
+          {tab === "charts" && <Charts trades={trades} accounts={accounts} acctName={acctName} backtests={backtests} />}
           {tab === "backtest" && <BacktestLog backtests={backtests} trades={trades} patterns={patterns} patName={patName} pairs={pairs} onView={id => setModal({ type: "view-backtest", id })} />}
           {tab === "rounds" && roundTables && <FightRounds tables={roundTables} onSave={saveRoundTables} />}
           {tab === "accounts" && <AccountLog accounts={accounts} trades={trades} withdrawals={withdrawals} onEdit={id => setModal({ type: "account", id })} />}
@@ -1316,6 +1316,7 @@ function TradeModal({ trade, accounts, patterns, pairs, allTrades, onClose, onSa
   const [riskPct, setRiskPct] = useState(t.riskPct || "");
   const [riskAmount, setRiskAmount] = useState(t.riskAmount || "");
   const [emotion, setEmotion] = useState(t.emotion || "");
+  const [conviction, setConviction] = useState(t.conviction || "");
   const [entryLink, setEntryLink] = useState(t.entryLink || "");
   const [exitLink, setExitLink] = useState(t.exitLink || "");
   const [entryNotes, setEntryNotes] = useState(t.entryNotes || "");
@@ -1359,7 +1360,7 @@ JSON: {"message":"2-3 sentences of direct coaching based on this result and thei
   const save = () => {
     if (!pair) return;
     if (!selectedAccountIds.length) return alert("Select at least one account");
-    const base = { date, day, time, session, pair, type, patternId, timeframe, result, pnl: parseFloat(pnl) || 0, riskPct, riskAmount, emotion, entryLink, exitLink, entryNotes, exitNotes, mistakes, rules };
+    const base = { date, day, time, session, pair, type, patternId, timeframe, result, pnl: parseFloat(pnl) || 0, riskPct, riskAmount, emotion, conviction: conviction === "" ? null : Number(conviction), entryLink, exitLink, entryNotes, exitNotes, mistakes, rules };
     if (t.id) {
       // editing existing — update only this trade's account
       onSave({ ...base, id: t.id, accountId: selectedAccountIds[0] });
@@ -1418,6 +1419,7 @@ JSON: {"message":"2-3 sentences of direct coaching based on this result and thei
       <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <Inp label="RISK $ AMOUNT" value={riskAmount} onChange={setRiskAmount} type="number" placeholder="0.00" />
         <Sel label="EMOTION AT ENTRY" value={emotion} onChange={setEmotion} options={EMOTIONS} />
+        <Inp label="CONVICTION (1-10) — how sure BEFORE the result" value={conviction} onChange={setConviction} type="number" placeholder="1-10" />
       </div>
       <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <Inp label="TRADINGVIEW ENTRY LINK" value={entryLink} onChange={setEntryLink} placeholder="https://..." />
@@ -1890,7 +1892,7 @@ function FightRounds({ tables, onSave }) {
   );
 }
 
-function Charts({ trades, accounts, acctName }) {
+function Charts({ trades, accounts, acctName, backtests }) {
   const [calYear, setCalYear] = useState(new Date().getFullYear());
   const [calMonth, setCalMonth] = useState(new Date().getMonth());
   const [selectedDay, setSelectedDay] = useState(null);
@@ -1986,8 +1988,50 @@ function Charts({ trades, accounts, acctName }) {
   const brokenSorted = Object.entries(brokenCount).map(([r, c]) => ({ r: Number(r), c })).sort((a, b) => b.c - a.c);
   const maxBroken = Math.max(...brokenSorted.map(x => x.c), 1);
 
+  // --- CALIBRATION (does conviction 1-10 match reality) ---
+  const calSrc = [...trades, ...(backtests || [])].filter(x => x.conviction != null && x.conviction !== "" && (x.result === "win" || x.result === "loss"));
+  const calBuckets = [
+    { key: "8-10", lo: 8, hi: 10, exp: 90 },
+    { key: "6-7", lo: 6, hi: 7, exp: 70 },
+    { key: "4-5", lo: 4, hi: 5, exp: 50 },
+    { key: "1-3", lo: 1, hi: 3, exp: 25 },
+  ].map(b => {
+    const items = calSrc.filter(x => { const c = Number(x.conviction); return c >= b.lo && c <= b.hi; });
+    const w = items.filter(x => x.result === "win").length;
+    const n = items.length;
+    const pct = n ? Math.round(w / n * 100) : null;
+    let verdict = null, vcolor = C.dim;
+    if (pct != null) {
+      const diff = pct - b.exp;
+      if (diff >= 13) { verdict = "Underconfident — your gut beats your number"; vcolor = C.green; }
+      else if (diff <= -13) { verdict = "Overconfident — trust it less"; vcolor = C.red; }
+      else { verdict = "Calibrated"; vcolor = C.gold; }
+    }
+    return { ...b, w, n, pct, verdict, vcolor };
+  });
+  const calTotal = calSrc.length;
+
   return (
     <div>
+      {/* CALIBRATION */}
+      <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18, marginBottom: 16 }}>
+        <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3, marginBottom: 6 }}>🎯 CALIBRATION — does your conviction tell the truth?</div>
+        <div style={{ fontSize: 11, color: C.dim, lineHeight: 1.5, marginBottom: 14 }}>When you feel 90% sure, do you win ~90%? Uses the conviction (1-10) on your real trades + backtests.</div>
+        {calTotal === 0
+          ? <div style={{ fontSize: 12, color: C.dim, lineHeight: 1.6 }}>Log trades and backtests with a CONVICTION (1-10) at entry and mark their result. Once you have a few, this shows whether your confidence matches reality.</div>
+          : <div>
+              {calBuckets.map(b => (
+                <div key={b.key} style={{ display: "flex", alignItems: "center", gap: 12, padding: "9px 0", borderBottom: `1px solid ${C.border}` }}>
+                  <div style={{ width: 54, fontFamily: "Bebas Neue, sans-serif", fontSize: 18, color: C.text }}>{b.key}</div>
+                  <div style={{ width: 74, fontFamily: "Bebas Neue, sans-serif", fontSize: 20, color: b.pct == null ? C.muted : b.vcolor }}>{b.pct == null ? "—" : b.pct + "%"}</div>
+                  <div style={{ width: 58, fontSize: 11, color: C.muted }}>{b.n ? `${b.w}/${b.n}` : "no data"}</div>
+                  <div style={{ flex: 1, fontSize: 11, color: b.vcolor }}>{b.verdict || ""}</div>
+                </div>
+              ))}
+              <div style={{ fontSize: 10, color: C.muted, marginTop: 10 }}>{calTotal} cases with conviction · "expected" ≈ conviction × 10</div>
+            </div>}
+      </div>
+
       {/* WIN RATE BY RULE COMPLIANCE */}
       <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18, marginBottom: 16 }}>
         <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3, marginBottom: 14 }}>🎯 WIN RATE BY RULE COMPLIANCE</div>
@@ -2274,9 +2318,10 @@ function BacktestModal({ backtest, patterns, pairs, onClose, onSave, onDelete })
   const [notes, setNotes] = useState(b.notes || "");
   const [reason, setReason] = useState(b.reason || "");
   const [tvLink, setTvLink] = useState(b.tvLink || "");
+  const [conviction, setConviction] = useState(b.conviction || "");
   const [rules, setRules] = useState(b.rules || []);
   const toggleRule = (r) => setRules(p => p.includes(r) ? p.filter(x => x !== r) : [...p, r].sort((a, b) => a - b));
-  const save = () => { if (!pair) return; onSave({ id: b.id || uid(), date, pair, type, patternId, timeframe, session, result, pnl: parseFloat(pnl)||0, notes, reason, tvLink, rules }); };
+  const save = () => { if (!pair) return; onSave({ id: b.id || uid(), date, pair, type, patternId, timeframe, session, result, pnl: parseFloat(pnl)||0, notes, reason, tvLink, conviction: conviction === "" ? null : Number(conviction), rules }); };
   return (
     <Modal title={b.id ? "EDIT BACKTEST" : "NEW BACKTEST TRADE"} onClose={onClose}>
       <div style={{ background: `${C.gold}0a`, border: `1px solid ${C.gold}33`, borderRadius: 6, padding: "10px 14px", marginBottom: 14, fontSize: 11, color: C.gold }}>
@@ -2302,6 +2347,7 @@ function BacktestModal({ backtest, patterns, pairs, onClose, onSave, onDelete })
         <Sel label="HYPOTHETICAL RESULT" value={result} onChange={setResult} options={["win","loss","breakeven"]} placeholder="" />
         <Inp label="HYPOTHETICAL P&L" value={pnl} onChange={setPnl} type="number" placeholder="±0.00" />
       </div>
+      <Inp label="CONVICTION (1-10) — how sure BEFORE seeing the result" value={conviction} onChange={setConviction} type="number" placeholder="1-10" />
       <div style={{ background: `${C.gold}0a`, border: `1px solid ${C.gold}33`, borderRadius: 8, padding: "14px", marginBottom: 13 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
           <div style={{ fontSize: 9, color: C.gold, letterSpacing: 3 }}>✓ THE 8 RULES — mark the ones the setup met</div>
