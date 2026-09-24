@@ -99,33 +99,74 @@ function loadCap() {
   return _cap;
 }
 
+function _rr(ctx, x, y, w, h, r) {
+  if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); return; }
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
 async function shareCardNode(node, title) {
   if (!node) return;
   const h2c = await loadCap();
-  const width = Math.round(node.getBoundingClientRect().width) || 360;
-  const frame = document.createElement("div");
-  frame.style.cssText = `position:fixed;left:-99999px;top:0;width:${width + 44}px;background:#0a0a0a;padding:22px;border-radius:16px;box-sizing:border-box;font-family:'Inter',sans-serif;overflow:hidden;`;
-  const wm = document.createElement("div");
-  wm.textContent = "THE UNKNOWN SOFTWARE";
-  wm.style.cssText = `position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-22deg);font-family:'Bebas Neue',sans-serif;font-size:${Math.max(34, Math.round(width * 0.1))}px;letter-spacing:6px;color:#ffffff;opacity:0.05;white-space:nowrap;pointer-events:none;`;
-  frame.appendChild(wm);
-  const clone = node.cloneNode(true);
-  clone.querySelectorAll("[data-noshare]").forEach(el => el.remove());
-  clone.style.position = "relative";
-  clone.style.zIndex = "1";
-  clone.style.margin = "0";
-  clone.style.width = "100%";
-  frame.appendChild(clone);
-  const foot = document.createElement("div");
-  foot.style.cssText = `position:relative;z-index:1;display:flex;align-items:center;gap:11px;margin-top:16px;padding-top:14px;border-top:1px solid #2a2a2a;`;
-  foot.innerHTML = `<div style="width:30px;height:30px;border-radius:7px;background:#c6f531;color:#000;font-family:'Bebas Neue',sans-serif;font-size:21px;display:flex;align-items:center;justify-content:center;">T</div><div style="line-height:1.15;"><div style="font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;color:#e8e8e8;">THE UNKNOWN SOFTWARE</div><div style="font-size:9px;letter-spacing:2px;color:#5a5a5a;">FOREX TRADING JOURNAL</div></div><div style="margin-left:auto;font-size:8.5px;letter-spacing:1px;color:#5a5a5a;text-align:right;line-height:1.3;">tu disciplina,<br/>medida</div>`;
-  frame.appendChild(foot);
-  document.body.appendChild(frame);
+  const htmlEl = document.documentElement;
+  const prevZoom = htmlEl.style.zoom;
   try {
-    if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
-    await new Promise(r => setTimeout(r, 80));
-    const canvas = await h2c(frame, { backgroundColor: "#0a0a0a", scale: 2, useCORS: true, logging: false });
-    const dataUrl = canvas.toDataURL("image/png");
+    if (document.fonts && document.fonts.ready) {
+      try { await document.fonts.ready; await document.fonts.load("21px 'Bebas Neue'"); await document.fonts.load("16px 'Inter'"); } catch (e) {}
+    }
+    // Neutralize the app's html { zoom: 1.15 } so html2canvas geometry is correct, then capture the REAL on-screen card.
+    htmlEl.style.zoom = "1";
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const shot = await h2c(node, {
+      backgroundColor: "#0a0a0a",
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      ignoreElements: (el) => !!(el.getAttribute && el.getAttribute("data-noshare") !== null),
+    });
+    htmlEl.style.zoom = prevZoom;
+
+    // Compose a branded frame around the captured card (Canvas = reliable everywhere).
+    const s = 2, padS = 22 * s, padT = 22 * s, padB = 18 * s, gap = 14 * s, footH = 40 * s;
+    const out = document.createElement("canvas");
+    out.width = shot.width + padS * 2;
+    out.height = shot.height + padT + gap + footH + padB;
+    const ctx = out.getContext("2d");
+    ctx.fillStyle = "#0a0a0a"; ctx.fillRect(0, 0, out.width, out.height);
+    // watermark
+    ctx.save();
+    ctx.translate(out.width / 2, out.height / 2);
+    ctx.rotate(-22 * Math.PI / 180);
+    ctx.globalAlpha = 0.06;
+    ctx.fillStyle = "#ffffff";
+    ctx.font = `${Math.max(30, Math.round(shot.width * 0.085))}px 'Bebas Neue', sans-serif`;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("THE UNKNOWN SOFTWARE", 0, 0);
+    ctx.restore();
+    ctx.globalAlpha = 1;
+    // card
+    ctx.drawImage(shot, padS, padT);
+    // footer
+    const sepY = padT + shot.height + gap;
+    ctx.strokeStyle = "#2a2a2a"; ctx.lineWidth = 1 * s;
+    ctx.beginPath(); ctx.moveTo(padS, sepY); ctx.lineTo(out.width - padS, sepY); ctx.stroke();
+    const ls = 30 * s, lx = padS, ly = sepY + 12 * s;
+    ctx.fillStyle = "#c6f531"; _rr(ctx, lx, ly, ls, ls, 7 * s); ctx.fill();
+    ctx.fillStyle = "#000"; ctx.font = `${Math.round(22 * s)}px 'Bebas Neue', sans-serif`;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("T", lx + ls / 2, ly + ls / 2 + 1 * s);
+    ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = "#e8e8e8"; ctx.font = `${Math.round(17 * s)}px 'Bebas Neue', sans-serif`;
+    ctx.fillText("THE UNKNOWN SOFTWARE", lx + ls + 11 * s, ly + 14 * s);
+    ctx.fillStyle = "#5a5a5a"; ctx.font = `${Math.round(10 * s)}px 'Inter', sans-serif`;
+    ctx.fillText("FOREX TRADING JOURNAL", lx + ls + 11 * s, ly + 28 * s);
+
+    const dataUrl = out.toDataURL("image/png");
     const name = `TUS_${(title || "card").replace(/[^a-z0-9]+/gi, "_").slice(0, 40)}.png`;
     try {
       const blob = await (await fetch(dataUrl)).blob();
@@ -138,9 +179,8 @@ async function shareCardNode(node, title) {
     const a = document.createElement("a");
     a.href = dataUrl; a.download = name; a.click();
   } catch (e) {
+    htmlEl.style.zoom = prevZoom;
     alert("No se pudo generar la imagen. Intenta de nuevo.");
-  } finally {
-    if (frame.parentNode) frame.parentNode.removeChild(frame);
   }
 }
 
