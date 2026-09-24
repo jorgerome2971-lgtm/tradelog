@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import PatternLibrary from "./PatternLibrary";
 import StudyLinks from "./StudyLinks";
 import Firms from "./Firms";
+import Omissions from "./Omissions";
 
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
 const fmt = (n) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", signDisplay: "exceptZero" }).format(n || 0);
@@ -131,6 +132,7 @@ function NavIcon({ id }) {
     firms: <><path d="M4 21 V4.5 A1.5 1.5 0 0 1 5.5 3 h9 A1.5 1.5 0 0 1 16 4.5 V21" /><path d="M16 9 h3.5 A1.5 1.5 0 0 1 21 10.5 V21" /><line x1="2.5" y1="21" x2="21.5" y2="21" /><line x1="8" y1="7" x2="8" y2="7" /><line x1="12" y1="7" x2="12" y2="7" /><line x1="8" y1="11" x2="8" y2="11" /><line x1="12" y1="11" x2="12" y2="11" /><line x1="8" y1="15" x2="8" y2="15" /><line x1="12" y1="15" x2="12" y2="15" /></>,
     setupcheck: <><circle cx="11" cy="11" r="7" /><line x1="16.5" y1="16.5" x2="21" y2="21" /><polyline points="8 11 10.3 13.3 14.5 8.6" /></>,
     reflections: <><path d="M6 3 h9 l4 4 v13 a1 1 0 0 1 -1 1 H6 a1 1 0 0 1 -1 -1 V4 a1 1 0 0 1 1 -1 Z" /><path d="M15 3 v4 h4" /><line x1="9" y1="12" x2="16" y2="12" /><line x1="9" y1="16" x2="14" y2="16" /></>,
+    omissions: <><path d="M2 12 C2 12 6 5 12 5 C18 5 22 12 22 12 C22 12 18 19 12 19 C6 19 2 12 2 12 Z" /><circle cx="12" cy="12" r="3" /></>,
   }[id];
   return <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{p}</svg>;
 }
@@ -349,6 +351,7 @@ export default function App() {
     { id: "library", icon: "📚", label: "Patterns Library" },
     { id: "links", icon: "🔗", label: "Study Links" },
     { id: "firms", icon: "🏢", label: "My Firms" },
+    { id: "omissions", icon: "🎣", label: "Omissions" },
   ];
 
   return (
@@ -391,7 +394,7 @@ export default function App() {
           <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
             <button className="tus-hamburger" onClick={() => setMenuOpen(true)} style={{ background: "transparent", border: "none", color: C.accent, fontSize: 24, cursor: "pointer", padding: 0, lineHeight: 1 }}>☰</button>
             <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 20, letterSpacing: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {{ dashboard: "DASHBOARD", trades: "TRADE LOG", patterns: "PATTERNS", pairs: "MY PAIRS", charts: "CHARTS", backtest: "BACKTESTING", rounds: "FIGHT ROUNDS", compass: "AI COMPASS", setupcheck: "SETUP CHECK", reflections: "REFLECTIONS", accounts: "ACCOUNTS", withdrawals: "WITHDRAWALS", library: "PATTERNS LIBRARY", links: "STUDY LINKS", firms: "MY FIRMS" }[tab]}
+              {{ dashboard: "DASHBOARD", trades: "TRADE LOG", patterns: "PATTERNS", pairs: "MY PAIRS", charts: "CHARTS", backtest: "BACKTESTING", rounds: "FIGHT ROUNDS", compass: "AI COMPASS", setupcheck: "SETUP CHECK", reflections: "REFLECTIONS", accounts: "ACCOUNTS", withdrawals: "WITHDRAWALS", library: "PATTERNS LIBRARY", links: "STUDY LINKS", firms: "MY FIRMS", omissions: "OMISSIONS" }[tab]}
             </div>
           </div>
           <div style={{ display: "flex", gap: 10 }}>
@@ -424,6 +427,7 @@ export default function App() {
           {tab === "library" && <PatternLibrary supaUrl={SUPA_URL} supaKey={SUPA_KEY} />}
           {tab === "links" && <StudyLinks supaUrl={SUPA_URL} supaKey={SUPA_KEY} />}
           {tab === "firms" && <Firms supaUrl={SUPA_URL} supaKey={SUPA_KEY} />}
+          {tab === "omissions" && <Omissions supaUrl={SUPA_URL} supaKey={SUPA_KEY} />}
         </div>
       </div>
 
