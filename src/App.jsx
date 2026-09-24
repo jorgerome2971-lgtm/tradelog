@@ -132,7 +132,7 @@ async function shareCardNode(node, title) {
     htmlEl.style.zoom = prevZoom;
 
     // Compose a branded frame around the captured card (Canvas = reliable everywhere).
-    const s = 2, padS = 22 * s, padT = 22 * s, padB = 18 * s, gap = 14 * s, footH = 40 * s;
+    const s = 2, padS = 22 * s, padT = 22 * s, padB = 18 * s, gap = 14 * s, footH = 46 * s;
     const out = document.createElement("canvas");
     out.width = shot.width + padS * 2;
     out.height = shot.height + padT + gap + footH + padB;
@@ -151,20 +151,34 @@ async function shareCardNode(node, title) {
     ctx.globalAlpha = 1;
     // card
     ctx.drawImage(shot, padS, padT);
-    // footer
+    // footer — usa el logo real del faro (el mismo <img> de la app)
     const sepY = padT + shot.height + gap;
     ctx.strokeStyle = "#2a2a2a"; ctx.lineWidth = 1 * s;
     ctx.beginPath(); ctx.moveTo(padS, sepY); ctx.lineTo(out.width - padS, sepY); ctx.stroke();
-    const ls = 30 * s, lx = padS, ly = sepY + 12 * s;
-    ctx.fillStyle = "#c6f531"; _rr(ctx, lx, ly, ls, ls, 7 * s); ctx.fill();
-    ctx.fillStyle = "#000"; ctx.font = `${Math.round(22 * s)}px 'Bebas Neue', sans-serif`;
-    ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillText("T", lx + ls / 2, ly + ls / 2 + 1 * s);
+    const ly = sepY + 11 * s;
+    let logoImg = null;
+    try {
+      const el = document.querySelector('img[alt="The Unknown Software"]');
+      if (el && el.src) logoImg = await new Promise(res => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = el.src; });
+    } catch (e) {}
+    let textX = padS;
+    if (logoImg && logoImg.width) {
+      const logoH = 36 * s, logoW = logoH * (logoImg.width / logoImg.height);
+      ctx.drawImage(logoImg, padS, ly, logoW, logoH);
+      textX = padS + logoW + 12 * s;
+    } else {
+      const ls = 30 * s;
+      ctx.fillStyle = "#c6f531"; _rr(ctx, padS, ly, ls, ls, 7 * s); ctx.fill();
+      ctx.fillStyle = "#000"; ctx.font = `${Math.round(22 * s)}px 'Bebas Neue', sans-serif`;
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText("T", padS + ls / 2, ly + ls / 2 + 1 * s);
+      textX = padS + ls + 12 * s;
+    }
     ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
     ctx.fillStyle = "#e8e8e8"; ctx.font = `${Math.round(17 * s)}px 'Bebas Neue', sans-serif`;
-    ctx.fillText("THE UNKNOWN SOFTWARE", lx + ls + 11 * s, ly + 14 * s);
+    ctx.fillText("THE UNKNOWN SOFTWARE", textX, ly + 16 * s);
     ctx.fillStyle = "#5a5a5a"; ctx.font = `${Math.round(10 * s)}px 'Inter', sans-serif`;
-    ctx.fillText("FOREX TRADING JOURNAL", lx + ls + 11 * s, ly + 28 * s);
+    ctx.fillText("FOREX TRADING JOURNAL", textX, ly + 30 * s);
 
     const dataUrl = out.toDataURL("image/png");
     const name = `TUS_${(title || "card").replace(/[^a-z0-9]+/gi, "_").slice(0, 40)}.png`;
