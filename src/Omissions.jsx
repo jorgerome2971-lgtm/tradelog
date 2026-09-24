@@ -148,6 +148,9 @@ export default function Omissions({ supaUrl, supaKey }) {
   const [fReason, setFReason] = useState("");
   const [modal, setModal] = useState(null);   // {} new, { entry } edit
   const [detail, setDetail] = useState(null);
+  const [aiQ, setAiQ] = useState("");
+  const [aiSearching, setAiSearching] = useState(false);
+  const [aiRes, setAiRes] = useState(null);
 
   const H = { apikey: supaKey, Authorization: `Bearer ${supaKey}`, "Content-Type": "application/json" };
 
@@ -173,6 +176,24 @@ export default function Omissions({ supaUrl, supaKey }) {
     setDetail(null); load();
   };
   const openEdit = (entry) => { setDetail(null); setModal({ entry }); };
+
+  const runAISearch = async () => {
+    const q = aiQ.trim();
+    if (!q || !rows.length) return;
+    setAiSearching(true); setAiRes(null);
+    try {
+      const lib = rows.map((e, i) => ({ i, pattern: e.pattern_type, pair: e.pair, dir: e.direction, tf: e.timeframe, date: e.date_seen, reason: e.reason, outcome: e.would_have, amount: e.amount, why: (e.description || "").slice(0, 200) }));
+      const prompt = "You are analyzing a forex trader's LEDGER OF OMISSIONS: valid setups they SAW but did NOT take. Each case has an index i, a reason they skipped it, whether it would_have won or lost, and the amount. Answer the trader's question in English about these missed trades: which cases fit, what patterns of hesitation show up, what it costs them. Reply ONLY with valid JSON, no markdown, no preamble, in this exact shape: {\"answer\": \"2-5 sentence plain-text answer\", \"matches\": [i, i, ...]} where matches lists the indices of the relevant cases (empty array if none). OMISSIONS: " + JSON.stringify(lib) + " QUESTION: " + q;
+      const res = await fetch("/.netlify/functions/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 900, messages: [{ role: "user", content: prompt }] }) });
+      if (!res.ok) throw new Error("status " + res.status);
+      const data = await res.json();
+      let txt = (data.content || []).map(b => b.text || "").join("").trim().replace(/```json|```/g, "").trim();
+      const parsed = JSON.parse(txt.substring(txt.indexOf("{"), txt.lastIndexOf("}") + 1));
+      const ids = Array.isArray(parsed.matches) ? parsed.matches.filter(n => Number.isInteger(n) && n >= 0 && n < rows.length) : [];
+      setAiRes({ answer: parsed.answer || "", ids });
+    } catch (e) { setAiRes("__ERROR__"); }
+    setAiSearching(false);
+  };
 
   const entries = rows.filter(e => !fReason || e.reason === fReason);
 
@@ -213,6 +234,45 @@ export default function Omissions({ supaUrl, supaKey }) {
           sub="net pips / R missed" color={leftOnTable >= 0 ? C.green : C.red} />
         <Stat label="TOP REASON" value={topReason ? omReasonLabel(topReason[0]).split(" ")[0] : "-"}
           sub={topReason ? `${topReason[1]}x - your biggest leak` : ""} color={C.red} />
+      </div>
+
+      {/* AI ask */}
+      <div style={{ background: C.panel, border: `1px solid ${C.accent}44`, borderRadius: 10, padding: "14px 16px", marginBottom: 18 }}>
+        <div style={{ fontSize: 9, color: C.accent, letterSpacing: 2, marginBottom: 8 }}>🔎 ASK YOUR OMISSIONS</div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <input value={aiQ} onChange={e => setAiQ(e.target.value)} onKeyDown={e => { if (e.key === "Enter") runAISearch(); }}
+            placeholder='e.g. "which setups do I skip after a loss?" or "what is my hesitation costing me?"'
+            style={{ flex: 1, minWidth: 220, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "Inter, sans-serif", fontSize: 13 }} />
+          <MicButton onText={t => setAiQ(v => (v ? v + " " : "") + t)} />
+          <Btn onClick={runAISearch} disabled={aiSearching || !aiQ.trim() || !rows.length}>{aiSearching ? "Asking..." : "Ask"}</Btn>
+          {aiRes && !aiSearching && <Btn ghost onClick={() => { setAiRes(null); setAiQ(""); }}>Clear</Btn>}
+        </div>
+        {aiSearching && (
+          <div style={{ textAlign: "center", padding: "16px 0" }}>
+            <div style={{ width: 26, height: 26, border: `3px solid ${C.border}`, borderTopColor: C.accent, borderRadius: "50%", animation: "spin .9s linear infinite", margin: "0 auto" }} />
+          </div>
+        )}
+        {aiRes && !aiSearching && (
+          <div style={{ marginTop: 12 }}>
+            {aiRes === "__ERROR__"
+              ? <div style={{ color: C.red, fontSize: 13 }}>Could not search. Try again.</div>
+              : <>
+                  <div style={{ fontSize: 13, color: C.text, lineHeight: 1.7, whiteSpace: "pre-wrap", marginBottom: aiRes.ids.length ? 14 : 0 }}>{aiRes.answer}</div>
+                  {aiRes.ids.length > 0 && <>
+                    <div style={{ fontSize: 9, color: C.accent, letterSpacing: 2, marginBottom: 10 }}>MATCHING OMISSIONS ({aiRes.ids.length})</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 12 }}>
+                      {aiRes.ids.map(i => { const e = rows[i]; if (!e) return null; const oc = e.would_have === "win" ? C.green : e.would_have === "loss" ? C.red : C.muted; return (
+                        <div key={e.id} onClick={() => setDetail(e)} style={{ background: C.bg, border: `1px solid ${C.border}`, borderLeft: `3px solid ${oc}`, borderRadius: 10, padding: "10px 12px", cursor: "pointer" }}>
+                          <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 15, letterSpacing: 1 }}>{omPatLabel(e.pattern_type)}</div>
+                          <div style={{ fontSize: 10, color: C.dim, marginTop: 2 }}>{e.pair || ""}{e.date_seen ? ` · ${e.date_seen}` : ""}</div>
+                          <div style={{ marginTop: 6 }}><Tag color={C.red}>{omReasonLabel(e.reason)}</Tag></div>
+                        </div>
+                      ); })}
+                    </div>
+                  </>}
+                </>}
+          </div>
+        )}
       </div>
 
       {/* Filter + add */}
