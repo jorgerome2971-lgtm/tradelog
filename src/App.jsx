@@ -148,6 +148,7 @@ export default function App() {
   const [backtests, setBacktests] = useState([]);
   const [withdrawals, setWithdrawals] = useState([]);
   const [patternLib, setPatternLib] = useState([]);
+  const [omissions, setOmissions] = useState([]);
   const [reflections, setReflections] = useState([]);
   const [roundTables, setRoundTables] = useState(null);
   const [modal, setModal] = useState(null);
@@ -186,7 +187,7 @@ export default function App() {
   useEffect(() => {
     const load = async () => {
       try {
-        const [a, t, p, pr, bt, wd, pl, rf] = await Promise.all([dbGet("accounts"), dbGet("trades"), dbGet("patterns"), dbGet("pairs"), dbGet("backtests").catch(() => []), dbGet("withdrawals").catch(() => []), dbGet("pattern_library").catch(() => []), dbGet("reflections").catch(() => [])]);
+        const [a, t, p, pr, bt, wd, pl, rf, om] = await Promise.all([dbGet("accounts"), dbGet("trades"), dbGet("patterns"), dbGet("pairs"), dbGet("backtests").catch(() => []), dbGet("withdrawals").catch(() => []), dbGet("pattern_library").catch(() => []), dbGet("reflections").catch(() => []), dbGet("omissions").catch(() => [])]);
         if (Array.isArray(a)) setAccounts(a.map(r => ({id:r.id, name:r.name, broker:r.broker, size:r.size, currency:r.currency, maxDaily:r.max_daily, maxDrawdown:r.max_drawdown, myPct:r.my_pct||"", firmPct:r.firm_pct||""})));
         if (Array.isArray(t)) setTrades(t.map(r => ({id:r.id, accountId:r.account_id, date:r.date, day:r.day, time:r.time, session:r.session, pair:r.pair, type:r.type, patternId:r.pattern_id, timeframe:r.timeframe, result:r.result, pnl:parseFloat(r.pnl)||0, riskPct:r.risk_pct, riskAmount:r.risk_amount, emotion:r.emotion, entryLink:r.entry_link, exitLink:r.exit_link, entryNotes:r.entry_notes, exitNotes:r.exit_notes, mistakes:r.mistakes, rules:r.rules||[]})));
         if (Array.isArray(p)) setPatterns(p.map(r => ({id:r.id, name:r.name, timeframe:r.timeframe, session:r.session, pairs:r.pairs, description:r.description, rules:r.rules, confirmations:r.confirmations, imageLink:r.image_link})));
@@ -194,6 +195,7 @@ export default function App() {
         if (Array.isArray(bt)) setBacktests(bt.map(r => ({id:r.id, date:r.date, pair:r.pair, type:r.type, patternId:r.pattern_id, timeframe:r.timeframe, result:r.result, pnl:parseFloat(r.pnl)||0, session:r.session, notes:r.notes||"", reason:r.reason||"", tvLink:r.tradingview_link||"", rules:r.rules||[]})));
         if (Array.isArray(wd)) setWithdrawals(wd.map(r => ({id:r.id, accountId:r.account_id, date:r.date, amount:parseFloat(r.amount)||0, myPct:r.my_pct||"", firmPct:r.firm_pct||"", notes:r.notes||""})));
         if (Array.isArray(pl)) setPatternLib(pl);
+        if (Array.isArray(om)) setOmissions(om);
         if (Array.isArray(rf)) setReflections(rf.map(r => ({id:r.id, text:r.text, category:r.category||"", pair:r.pair||"", timeframe:r.timeframe||"", created_at:r.created_at})));
       } catch (e) { setSaveStatus("⚠ Connection error"); }
       try {
@@ -415,7 +417,7 @@ export default function App() {
           {tab === "dashboard" && <Dashboard trades={trades} stats={stats} patterns={patterns} acctName={acctName} patName={patName} onViewTrade={id => setModal({ type: "view-trade", id })} />}
           {tab === "trades" && <TradeLog trades={trades} acctName={acctName} patName={patName} onView={id => setModal({ type: "view-trade", id })} />}
           {tab === "patterns" && <PatternLog patterns={patterns} trades={trades} onView={id => setModal({ type: "view-pattern", id })} />}
-          {tab === "compass" && <Compass trades={trades} stats={stats} patName={patName} backtests={backtests} patternLib={patternLib} aiResult={aiResult} setAiResult={setAiResult} aiLoading={aiLoading} setAiLoading={setAiLoading} />}
+          {tab === "compass" && <Compass trades={trades} stats={stats} patName={patName} backtests={backtests} patternLib={patternLib} omissions={omissions} aiResult={aiResult} setAiResult={setAiResult} aiLoading={aiLoading} setAiLoading={setAiLoading} />}
           {tab === "setupcheck" && <SetupCheck trades={trades} backtests={backtests} patternLib={patternLib} patName={patName} reflections={reflections} />}
           {tab === "reflections" && <Reflections reflections={reflections} onSave={saveReflections} />}
           {tab === "pairs" && <PairsLog pairs={pairs} onEdit={id => setModal({ type: "pair", id })} />}
@@ -620,9 +622,10 @@ function PatternLog({ patterns, trades, onView }) {
   );
 }
 
-function Compass({ trades, stats, patName, backtests, patternLib, aiResult, setAiResult, aiLoading, setAiLoading }) {
+function Compass({ trades, stats, patName, backtests, patternLib, omissions, aiResult, setAiResult, aiLoading, setAiLoading }) {
   backtests = backtests || [];
   patternLib = patternLib || [];
+  omissions = omissions || [];
   const [question, setQuestion] = useState("");
   const [qAnswer, setQAnswer] = useState(null);
   const [asking, setAsking] = useState(false);
@@ -662,7 +665,7 @@ function Compass({ trades, stats, patName, backtests, patternLib, aiResult, setA
   })();
 
   const runAI = async () => {
-    if (!trades.length && !backtests.length && !patternLib.length) return;
+    if (!trades.length && !backtests.length && !patternLib.length && !omissions.length) return;
     setAiLoading(true); setAiResult(null);
 
     // one small AI call, returns plain text (no fragile JSON parsing per call)
@@ -678,10 +681,11 @@ function Compass({ trades, stats, patName, backtests, patternLib, aiResult, setA
     const tradesData = JSON.stringify(trades.slice(-30).map(t => ({ pair: t.pair, type: t.type, pattern: patName(t.patternId), session: t.session, emotion: t.emotion || "-", result: t.result, pnl: t.pnl })));
     const btData = JSON.stringify(backtests.slice(-20).map(b => ({ pair: b.pair, pattern: patName(b.patternId), result: b.result, pnl: b.pnl, reason: (b.reason || "").slice(0, 100) })));
     const libData = JSON.stringify(patternLib.slice(-40).map(e => ({ pattern: e.pattern_type, pair: e.pair, verdict: e.verdict === "no_es" ? "INVALID" : "VALID", sub: e.sub_verdict, rules: e.rules, why: (e.description || "").slice(0, 120) })));
+    const omData = JSON.stringify(omissions.slice(-40).map(e => ({ pattern: e.pattern_type, pair: e.pair, dir: e.direction, reason: e.reason, outcome: e.would_have, amount: e.amount, why: (e.description || "").slice(0, 100) })));
     const emo = {};
     trades.forEach(t => { const e = t.emotion || "unspecified"; if (!emo[e]) emo[e] = { w: 0, l: 0 }; if (t.result === "win") emo[e].w++; else if (t.result === "loss") emo[e].l++; });
     const emoData = JSON.stringify({ byEmotion: emo, winrate: stats.winrate });
-    const overview = JSON.stringify({ trades: trades.length, backtests: backtests.length, libraryCases: patternLib.length, winrate: stats.winrate, rr: stats.rr, topInvalidatingRule: libStats.topInvalidatingRule });
+    const overview = JSON.stringify({ trades: trades.length, backtests: backtests.length, libraryCases: patternLib.length, omissions: omissions.length, winrate: stats.winrate, rr: stats.rr, topInvalidatingRule: libStats.topInvalidatingRule });
 
     const base = "You are an expert forex trading coach. Reply in English, plain text only, no markdown, no preamble. ";
 
@@ -689,8 +693,9 @@ function Compass({ trades, stats, patName, backtests, patternLib, aiResult, setA
       trades: trades.length ? askAI(base + "In 2-4 sentences, analyze these real trades. STATS: " + statsData + " TRADES: " + tradesData) : Promise.resolve("No real trades logged yet."),
       backtest: backtests.length ? askAI(base + "In 2-4 sentences, analyze this backtesting (setups studied, not taken live). DATA: " + btData) : Promise.resolve("No backtests logged yet."),
       library: patternLib.length ? askAI(base + "In 3-5 sentences analyze this pattern library. Call out which rule most often INVALIDATES a pattern, which pattern is most often invalid, and what separates VALID from INVALID. RULE LEGEND: " + JSON.stringify(LIB_RULE_LABELS) + " TALLIES: " + JSON.stringify(libStats) + " CASES: " + libData, 550) : Promise.resolve("No library cases yet."),
+      omissions: omissions.length ? askAI(base + "In 3-5 sentences analyze the valid setups this trader SAW but did NOT take (their omissions / missed trades). Point out the reason they skip most, whether they are skipping winners (the cost of hesitation), and one concrete fix. Each case has reason, outcome (would_have win/loss), amount. DATA: " + omData) : Promise.resolve("No omissions logged yet."),
       psychology: (trades.length || patternLib.length) ? askAI(base + "In 3-5 sentences give a psychological read and concrete recommendations based on the trader's logged emotions and relationship to winning and losing, framed through Buddhism and Taoism: non-attachment to outcome (the trade does not define the person), impermanence/anicca (each result arises and passes), wu wei (not forcing, flowing with the market), and the Taoist farmer parable (a single result cannot be judged in isolation). Apply soberly and specifically to this data, no empty mysticism. DATA: " + emoData, 550) : Promise.resolve("Log trades with emotions to get a psychological read."),
-      combined: askAI(base + "In 3-5 sentences, synthesize the trader's whole picture across real trades, backtesting, and pattern library into one coherent read. OVERVIEW: " + overview),
+      combined: askAI(base + "In 3-5 sentences, synthesize the trader's whole picture across real trades, backtesting, pattern library, and omissions (missed setups) into one coherent read. OVERVIEW: " + overview),
       oneThingToFocusOn: askAI(base + "In ONE sentence, state the single most important thing this trader should work on next. OVERVIEW: " + overview, 120),
     };
 
@@ -784,7 +789,7 @@ function Compass({ trades, stats, patName, backtests, patternLib, aiResult, setA
         ? <div style={{ color: C.red, fontSize: 13, padding: 16 }}>Could not generate analysis. Try again.</div>
         : <div>
             <SLabel>⊕ AI DEEP ANALYSIS</SLabel>
-            {[["📈 REAL TRADES", aiResult.trades, C.green], ["📊 BACKTESTING", aiResult.backtest, C.gold], ["📚 PATTERNS LIBRARY", aiResult.library, C.accent]].map(([t, v, c]) => (
+            {[["📈 REAL TRADES", aiResult.trades, C.green], ["📊 BACKTESTING", aiResult.backtest, C.gold], ["📚 PATTERNS LIBRARY", aiResult.library, C.accent], ["🎣 OMISSIONS", aiResult.omissions, C.red]].map(([t, v, c]) => (
               <div key={t} style={{ background: C.panel, border: `1px solid ${C.border}`, borderLeft: `3px solid ${c}`, borderRadius: 10, padding: "15px 17px", marginBottom: 12 }}>
                 <div style={{ fontSize: 9, color: c, letterSpacing: 2, marginBottom: 8 }}>{t}</div>
                 <div style={{ fontSize: 13, color: C.text, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{v}</div>
