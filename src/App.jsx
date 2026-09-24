@@ -84,6 +84,81 @@ function Btn({ children, onClick, color = C.accent, ghost = false, danger = fals
   );
 }
 
+// ============ COMPARTIR TARJETA COMO IMAGEN (para redes) ============
+let _h2i = null;
+function loadH2I() {
+  if (typeof window !== "undefined" && window.htmlToImage) return Promise.resolve(window.htmlToImage);
+  if (_h2i) return _h2i;
+  _h2i = new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js";
+    s.onload = () => resolve(window.htmlToImage);
+    s.onerror = () => { _h2i = null; reject(new Error("lib")); };
+    document.head.appendChild(s);
+  });
+  return _h2i;
+}
+
+async function shareCardNode(node, title) {
+  if (!node) return;
+  const h2i = await loadH2I();
+  const width = Math.round(node.getBoundingClientRect().width) || 360;
+  const frame = document.createElement("div");
+  frame.style.cssText = `position:fixed;left:-99999px;top:0;width:${width + 44}px;background:#0a0a0a;padding:22px;border-radius:16px;box-sizing:border-box;font-family:'Inter',sans-serif;overflow:hidden;`;
+  const wm = document.createElement("div");
+  wm.textContent = "THE UNKNOWN SOFTWARE";
+  wm.style.cssText = `position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-22deg);font-family:'Bebas Neue',sans-serif;font-size:${Math.max(34, Math.round(width * 0.1))}px;letter-spacing:6px;color:#ffffff;opacity:0.05;white-space:nowrap;pointer-events:none;`;
+  frame.appendChild(wm);
+  const clone = node.cloneNode(true);
+  clone.querySelectorAll("[data-noshare]").forEach(el => el.remove());
+  clone.style.position = "relative";
+  clone.style.zIndex = "1";
+  clone.style.margin = "0";
+  clone.style.width = "100%";
+  frame.appendChild(clone);
+  const foot = document.createElement("div");
+  foot.style.cssText = `position:relative;z-index:1;display:flex;align-items:center;gap:11px;margin-top:16px;padding-top:14px;border-top:1px solid #2a2a2a;`;
+  foot.innerHTML = `<div style="width:30px;height:30px;border-radius:7px;background:#c6f531;color:#000;font-family:'Bebas Neue',sans-serif;font-size:21px;display:flex;align-items:center;justify-content:center;">T</div><div style="line-height:1.15;"><div style="font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;color:#e8e8e8;">THE UNKNOWN SOFTWARE</div><div style="font-size:9px;letter-spacing:2px;color:#5a5a5a;">FOREX TRADING JOURNAL</div></div><div style="margin-left:auto;font-size:8.5px;letter-spacing:1px;color:#5a5a5a;text-align:right;line-height:1.3;">tu disciplina,<br/>medida</div>`;
+  frame.appendChild(foot);
+  document.body.appendChild(frame);
+  try {
+    await new Promise(r => setTimeout(r, 80));
+    const dataUrl = await h2i.toPng(frame, { pixelRatio: 2, backgroundColor: "#0a0a0a", cacheBust: true });
+    const name = `TUS_${(title || "card").replace(/[^a-z0-9]+/gi, "_").slice(0, 40)}.png`;
+    try {
+      const blob = await (await fetch(dataUrl)).blob();
+      const file = new File([blob], name, { type: "image/png" });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: "The Unknown Software" });
+        return;
+      }
+    } catch (e) {}
+    const a = document.createElement("a");
+    a.href = dataUrl; a.download = name; a.click();
+  } catch (e) {
+    alert("No se pudo generar la imagen. Intenta de nuevo.");
+  } finally {
+    if (frame.parentNode) frame.parentNode.removeChild(frame);
+  }
+}
+
+function ShareBtn({ title, top = 8, right = 8 }) {
+  const [busy, setBusy] = useState(false);
+  const onClick = async (e) => {
+    e.stopPropagation();
+    const card = e.currentTarget.closest("[data-shareable]");
+    if (!card) return;
+    setBusy(true);
+    try { await shareCardNode(card, title); } catch (err) {} finally { setBusy(false); }
+  };
+  return (
+    <button data-noshare onClick={onClick} title="Compartir como imagen"
+      style={{ position: "absolute", top, right, zIndex: 6, width: 28, height: 28, borderRadius: 7, border: `1px solid ${C.border}`, background: "rgba(28,28,28,0.85)", color: busy ? C.gold : C.accent, cursor: busy ? "wait" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+    </button>
+  );
+}
+
 function Tag({ children, color = C.dim }) {
   return <span style={{ fontSize: 9, padding: "2px 7px", background: C.border, borderRadius: 3, color, letterSpacing: 1 }}>{children}</span>;
 }
@@ -1732,7 +1807,8 @@ function WithdrawalLog({ withdrawals, accounts, acctName, trades, onEdit }) {
   withdrawals.forEach(w => { if (!acctWd[w.accountId]) acctWd[w.accountId] = 0; acctWd[w.accountId] += w.amount || 0; });
   return (
     <div>
-      <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 22 }}>
+      <div data-shareable className="rgrid" style={{ position: "relative", display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 22 }}>
+        <ShareBtn title="withdrawals_summary" top={-4} right={-4} />
         {[{ label: "GROSS P&L", val: fmt(grossPnl), color: grossPnl >= 0 ? C.green : C.red }, { label: "TOTAL WITHDRAWN", val: fmt(totalWithdrawn), color: C.gold }, { label: "NET REMAINING", val: fmt(grossPnl - totalWithdrawn), color: (grossPnl - totalWithdrawn) >= 0 ? C.green : C.red }].map(s => (
           <div key={s.label} style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "13px 14px" }}>
             <div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, marginBottom: 8 }}>{s.label}</div>
@@ -1748,7 +1824,8 @@ function WithdrawalLog({ withdrawals, accounts, acctName, trades, onEdit }) {
               const acctPnl = trades.filter(t => t.accountId === id).reduce((a, t) => a + (t.pnl||0), 0);
               const acct = accounts.find(a => a.id === id) || {};
               return (
-                <div key={id} style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "14px" }}>
+                <div key={id} data-shareable style={{ position: "relative", background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "14px" }}>
+                  <ShareBtn title={acctName(id)} />
                   <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 16, marginBottom: 4 }}>{acctName(id)}</div>
                   {acct.myPct && <div style={{ fontSize: 10, color: C.dim, marginBottom: 4 }}>My cut: {acct.myPct}% · Firm: {acct.firmPct}%</div>}
                   <div style={{ fontSize: 11, color: C.gold }}>Withdrawn: {fmt(amt)}</div>
@@ -1763,7 +1840,8 @@ function WithdrawalLog({ withdrawals, accounts, acctName, trades, onEdit }) {
       <SLabel>WITHDRAWAL HISTORY</SLabel>
       {!withdrawals.length ? <Empty text="No withdrawals yet. Add your first one!" /> :
         [...withdrawals].reverse().map(w => (
-          <div key={w.id} onClick={() => onEdit(w.id)} style={{ display: "flex", alignItems: "center", gap: 12, background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "12px 14px", marginBottom: 6, cursor: "pointer" }}>
+          <div key={w.id} data-shareable onClick={() => onEdit(w.id)} style={{ position: "relative", display: "flex", alignItems: "center", gap: 12, background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "12px 44px 12px 14px", marginBottom: 6, cursor: "pointer" }}>
+            <ShareBtn title={acctName(w.accountId)} />
             <div style={{ fontSize: 20, color: C.gold }}>💸</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 700, fontSize: 13 }}>{acctName(w.accountId)}</div>
@@ -1851,10 +1929,11 @@ function FightRounds({ tables, onSave }) {
         const wonValue = table.values.reduce((a, v, i) => a + (table.results[i] === "win" ? v : 0), 0);
         const lostValue = table.values.reduce((a, v, i) => a + (table.results[i] === "loss" ? v : 0), 0);
         return (
-          <div key={key} style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20, marginBottom: 20 }}>
+          <div key={key} data-shareable style={{ position: "relative", background: C.panel, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20, marginBottom: 20 }}>
+            <ShareBtn title={table.name || "fight_round"} />
             <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18 }}>
               <input value={table.name} onChange={e => updateName(key, e.target.value)} style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 20, letterSpacing: 3, background: "transparent", border: "none", color: C.text, flex: 1, cursor: "text" }} />
-              <div style={{ display: "flex", gap: 16, fontSize: 11 }}>
+              <div style={{ display: "flex", gap: 16, fontSize: 11, marginRight: 30 }}>
                 <span style={{ color: C.green }}>{wins}W</span><span style={{ color: C.red }}>{losses}L</span><span style={{ color: C.dim }}>{12 - wins - losses} left</span>
               </div>
             </div>
@@ -2014,7 +2093,8 @@ function Charts({ trades, accounts, acctName, backtests }) {
   return (
     <div>
       {/* CALIBRATION */}
-      <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18, marginBottom: 16 }}>
+      <div data-shareable style={{ position: "relative", background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18, marginBottom: 16 }}>
+        <ShareBtn title="calibration" />
         <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3, marginBottom: 6 }}>🎯 CALIBRATION — does your conviction tell the truth?</div>
         <div style={{ fontSize: 11, color: C.dim, lineHeight: 1.5, marginBottom: 14 }}>When you feel 90% sure, do you win ~90%? Uses the conviction (1-10) on your real trades + backtests.</div>
         {calTotal === 0
@@ -2033,7 +2113,8 @@ function Charts({ trades, accounts, acctName, backtests }) {
       </div>
 
       {/* WIN RATE BY RULE COMPLIANCE */}
-      <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18, marginBottom: 16 }}>
+      <div data-shareable style={{ position: "relative", background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18, marginBottom: 16 }}>
+        <ShareBtn title="win_rate_by_rules" />
         <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3, marginBottom: 14 }}>🎯 WIN RATE BY RULE COMPLIANCE</div>
         {recorded.length === 0
           ? <div style={{ fontSize: 12, color: C.dim, lineHeight: 1.6 }}>Mark the 8 rules on your trades to unlock this. It answers the key question: are your losses variance, or indiscipline?</div>
@@ -2051,7 +2132,8 @@ function Charts({ trades, accounts, acctName, backtests }) {
       </div>
 
       {/* MOST BROKEN RULES */}
-      <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18, marginBottom: 16 }}>
+      <div data-shareable style={{ position: "relative", background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18, marginBottom: 16 }}>
+        <ShareBtn title="most_broken_rules" />
         <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3, marginBottom: 14 }}>⚠️ MOST BROKEN RULES (real trades)</div>
         {recorded.length === 0
           ? <div style={{ fontSize: 12, color: C.dim }}>No rule data yet — mark the rules on your trades.</div>
@@ -2071,7 +2153,8 @@ function Charts({ trades, accounts, acctName, backtests }) {
       </div>
 
       {/* Cumulative P&L Chart */}
-      <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18, marginBottom: 16 }}>
+      <div data-shareable style={{ position: "relative", background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18, marginBottom: 16 }}>
+        <ShareBtn title="cumulative_pnl" />
         <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3, marginBottom: 14 }}>📈 CUMULATIVE P&L</div>
         <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 28, color: lastPnl >= 0 ? C.green : C.red, marginBottom: 12 }}>{fmt(lastPnl)}</div>
         <svg viewBox={`0 0 ${chartW} ${chartH}`} style={{ width: "100%", height: 120 }}>
@@ -2095,10 +2178,11 @@ function Charts({ trades, accounts, acctName, backtests }) {
       </div>
 
       {/* Calendar */}
-      <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18, marginBottom: 16 }}>
+      <div data-shareable style={{ position: "relative", background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18, marginBottom: 16 }}>
+        <ShareBtn title="calendar" />
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
           <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3 }}>📅 CALENDAR</div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", marginRight: 30 }}>
             <button onClick={() => { if (calMonth === 0) { setCalMonth(11); setCalYear(y => y-1); } else setCalMonth(m => m-1); setSelectedDay(null); }} style={{ background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "4px 10px", borderRadius: 4, cursor: "pointer" }}>‹</button>
             <span style={{ fontSize: 12, fontWeight: 700 }}>{MONTHS[calMonth]} {calYear}</span>
             <button onClick={() => { if (calMonth === 11) { setCalMonth(0); setCalYear(y => y+1); } else setCalMonth(m => m+1); setSelectedDay(null); }} style={{ background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "4px 10px", borderRadius: 4, cursor: "pointer" }}>›</button>
@@ -2140,7 +2224,8 @@ function Charts({ trades, accounts, acctName, backtests }) {
 
       {/* Best Months */}
       {topMonths.length > 0 && (
-        <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18, marginBottom: 16 }}>
+        <div data-shareable style={{ position: "relative", background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18, marginBottom: 16 }}>
+          <ShareBtn title="best_months" />
           <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3, marginBottom: 14 }}>🏆 BEST MONTHS HISTORICALLY</div>
           {topMonths.map(([key, d]) => (
             <div key={key} style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
@@ -2157,7 +2242,8 @@ function Charts({ trades, accounts, acctName, backtests }) {
 
       <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
         {/* Win/Loss/BE Donut */}
-        <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18 }}>
+        <div data-shareable style={{ position: "relative", background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18 }}>
+          <ShareBtn title="results_breakdown" />
           <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3, marginBottom: 14 }}>🎯 RESULTS BREAKDOWN</div>
           <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 14 }}>
             {[[wins, C.green, "WIN"], [losses, C.red, "LOSS"], [bes, C.muted, "BE"]].map(([n, c, l]) => (
@@ -2179,7 +2265,8 @@ function Charts({ trades, accounts, acctName, backtests }) {
         </div>
 
         {/* By Account */}
-        <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18 }}>
+        <div data-shareable style={{ position: "relative", background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18 }}>
+          <ShareBtn title="by_account" />
           <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3, marginBottom: 14 }}>💼 BY ACCOUNT</div>
           {Object.entries(acctMap).map(([id, d]) => (
             <Bar key={id} label={acctName(id)} value={d.pnl} max={Math.max(...Object.values(acctMap).map(x => Math.abs(x.pnl)))} sub={`${d.count} trades`} />
@@ -2189,7 +2276,8 @@ function Charts({ trades, accounts, acctName, backtests }) {
 
       <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
         {/* By Pair */}
-        <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18 }}>
+        <div data-shareable style={{ position: "relative", background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18 }}>
+          <ShareBtn title="pnl_by_pair" />
           <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3, marginBottom: 14 }}>💱 P&L BY PAIR</div>
           {topPairs.map(([pair, d]) => (
             <Bar key={pair} label={pair} value={d.pnl} max={Math.max(...topPairs.map(x => Math.abs(x[1].pnl)))} sub={`${d.count} trades`} />
@@ -2197,7 +2285,8 @@ function Charts({ trades, accounts, acctName, backtests }) {
         </div>
 
         {/* By Session */}
-        <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18 }}>
+        <div data-shareable style={{ position: "relative", background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18 }}>
+          <ShareBtn title="pnl_by_session" />
           <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3, marginBottom: 14 }}>🕐 P&L BY SESSION</div>
           {Object.entries(sessionMap).sort((a,b) => b[1].pnl - a[1].pnl).map(([session, d]) => (
             <Bar key={session} label={session} value={d.pnl} max={Math.max(...Object.values(sessionMap).map(x => Math.abs(x.pnl)))} sub={`${d.wins}/${d.total} wins`} />
@@ -2206,7 +2295,8 @@ function Charts({ trades, accounts, acctName, backtests }) {
       </div>
 
       {/* By Day */}
-      <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18 }}>
+      <div data-shareable style={{ position: "relative", background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18 }}>
+        <ShareBtn title="pnl_by_day" />
         <div style={{ fontSize: 9, color: C.muted, letterSpacing: 3, marginBottom: 14 }}>📅 P&L BY DAY OF WEEK</div>
         <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 10 }}>
           {["Monday","Tuesday","Wednesday","Thursday","Friday"].map(day => {
