@@ -7,6 +7,10 @@ import { useState, useEffect } from "react";
    App.jsx only imports and calls it - 4 small lines.
    Visible text in English; stored values (si_es, no_es, etc.)
    kept intact so the filter and table schema keep working.
+   ------------------------------------------------------------
+   v2: added EDIT (the form now creates OR updates) and a
+   FOUND DATE field (the date the pattern was found on TradingView).
+   Requires: alter table pattern_library add column if not exists found_date date;
    ============================================================ */
 
 // -- Palette (same as the app) -------------------------------------------------
@@ -152,7 +156,7 @@ export default function PatternLibrary({ supaUrl, supaKey }) {
   const [fPattern, setFPattern] = useState("");
   const [fVerdict, setFVerdict] = useState("");
   const [fPair, setFPair] = useState("");
-  const [modal, setModal] = useState(null);
+  const [modal, setModal] = useState(null);   // {} = new case, { entry } = edit
   const [detail, setDetail] = useState(null);
   const [aiQ, setAiQ] = useState("");
   const [aiSearching, setAiSearching] = useState(false);
@@ -177,6 +181,9 @@ export default function PatternLibrary({ supaUrl, supaKey }) {
     setDetail(null); load();
   };
 
+  // open the form pre-filled to edit an existing case
+  const openEdit = (entry) => { setDetail(null); setModal({ entry }); };
+
   // distinct pairs present in the library, for the pair filter dropdown
   const pairOptions = Array.from(new Set(allEntries.map(e => e.pair).filter(Boolean))).sort();
 
@@ -192,7 +199,7 @@ export default function PatternLibrary({ supaUrl, supaKey }) {
     if (!q || !allEntries.length) return;
     setAiSearching(true); setAiRes(null);
     try {
-      const lib = allEntries.map((e, i) => ({ i, pattern: e.pattern_type, pair: e.pair, verdict: e.verdict === "no_es" ? "INVALID" : "VALID", sub: e.sub_verdict, dir: e.direction, tf: e.timeframe, rules: e.rules, why: (e.description || "").slice(0, 200) }));
+      const lib = allEntries.map((e, i) => ({ i, pattern: e.pattern_type, pair: e.pair, verdict: e.verdict === "no_es" ? "INVALID" : "VALID", sub: e.sub_verdict, dir: e.direction, tf: e.timeframe, date: e.found_date, rules: e.rules, why: (e.description || "").slice(0, 200) }));
       const prompt = "You are a forex chart-pattern librarian with full access to the trader's own saved library of classified cases. Each case has an index i. Answer the trader's question in English about their library: which cases fit, what they share, what the data shows. Reply ONLY with valid JSON, no markdown, no preamble, in this exact shape: {\"answer\": \"2-5 sentence plain-text answer\", \"matches\": [i, i, ...]} where matches lists the indices of the cases relevant to the question (empty array if none fit). LIBRARY: " + JSON.stringify(lib) + " QUESTION: " + q;
       const res = await fetch("/.netlify/functions/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 900, messages: [{ role: "user", content: prompt }] }) });
       if (!res.ok) throw new Error("status " + res.status);
@@ -264,6 +271,7 @@ export default function PatternLibrary({ supaUrl, supaKey }) {
                             <div style={{ fontSize: 10, color: v.color, letterSpacing: 1, fontWeight: 700 }}>{v.label}</div>
                             <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 16, letterSpacing: 1, marginTop: 3 }}>{libPatLabel(e.pattern_type)}</div>
                             {e.direction && <div style={{ fontSize: 10, color: C.dim, marginTop: 1 }}>{e.direction}{e.pair ? ` - ${e.pair}` : ""}</div>}
+                            {e.found_date && <div style={{ fontSize: 9, color: C.muted, marginTop: 2 }}>📅 {e.found_date}</div>}
                             <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 8 }}>{(e.rules || []).map(r => <Tag key={r} color={C.accent}>R{r}</Tag>)}</div>
                           </div>
                         </div>
@@ -293,6 +301,7 @@ export default function PatternLibrary({ supaUrl, supaKey }) {
                       {libPatLabel(e.pattern_type)}
                     </div>
                     {e.direction && <div style={{ fontSize: 10, color: C.dim, marginTop: 1 }}>{e.direction}{e.pair ? ` - ${e.pair}` : ""}</div>}
+                    {e.found_date && <div style={{ fontSize: 9, color: C.muted, marginTop: 2 }}>📅 {e.found_date}</div>}
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 9 }}>
                       {(e.rules || []).map(r => <Tag key={r} color={C.accent}>R{r}</Tag>)}
                     </div>
@@ -303,24 +312,26 @@ export default function PatternLibrary({ supaUrl, supaKey }) {
           </div>
         )}
 
-      {modal && <PatternCaseModal supaUrl={supaUrl} supaKey={supaKey}
+      {modal && <PatternCaseModal supaUrl={supaUrl} supaKey={supaKey} entry={modal.entry}
         onClose={() => setModal(null)} onDone={() => { setModal(null); load(); }} />}
-      {detail && <PatternCaseView entry={detail} onClose={() => setDetail(null)} onDelete={del} />}
+      {detail && <PatternCaseView entry={detail} onClose={() => setDetail(null)} onDelete={del} onEdit={openEdit} />}
     </div>
   );
 }
 
-// -- Case classification form --------------------------------------------------
-function PatternCaseModal({ supaUrl, supaKey, onClose, onDone }) {
-  const [verdict, setVerdict] = useState("si_es");
-  const [sub, setSub] = useState("perfecto");
-  const [patternType, setPatternType] = useState("bull_flag");
-  const [direction, setDirection] = useState("");
-  const [pair, setPair] = useState("");
-  const [timeframe, setTimeframe] = useState("1H");
-  const [rules, setRules] = useState([]);
-  const [description, setDescription] = useState("");
-  const [tvLink, setTvLink] = useState("");
+// -- Case classification form (creates a new case OR edits an existing one) -----
+function PatternCaseModal({ supaUrl, supaKey, entry, onClose, onDone }) {
+  const isEdit = !!(entry && entry.id);
+  const [verdict, setVerdict] = useState(entry?.verdict || "si_es");
+  const [sub, setSub] = useState(entry?.sub_verdict || "perfecto");
+  const [patternType, setPatternType] = useState(entry?.pattern_type || "bull_flag");
+  const [direction, setDirection] = useState(entry?.direction || "");
+  const [pair, setPair] = useState(entry?.pair || "");
+  const [timeframe, setTimeframe] = useState(entry?.timeframe || "1H");
+  const [foundDate, setFoundDate] = useState(entry?.found_date || "");
+  const [rules, setRules] = useState(entry?.rules || []);
+  const [description, setDescription] = useState(entry?.description || "");
+  const [tvLink, setTvLink] = useState(entry?.tradingview_link || "");
   const [file, setFile] = useState(null);
   const [saving, setSaving] = useState(false);
 
@@ -330,7 +341,8 @@ function PatternCaseModal({ supaUrl, supaKey, onClose, onDone }) {
     if (!description.trim()) return alert("Write the reason before saving.");
     setSaving(true);
     try {
-      let image_url = null;
+      // keep the existing image when editing and no new file is chosen
+      let image_url = isEdit ? (entry.image_url || null) : null;
       if (file) {
         try {
           const path = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, "")}`;
@@ -340,8 +352,8 @@ function PatternCaseModal({ supaUrl, supaKey, onClose, onDone }) {
             body: file,
           });
           if (up.ok) image_url = `${supaUrl}/storage/v1/object/public/pattern-library/${path}`;
-          else alert("Could not upload the image (the case will be saved without it).");
-        } catch { alert("Could not upload the image (the case will be saved without it)."); }
+          else alert("Could not upload the image (the case will be saved without the new one).");
+        } catch { alert("Could not upload the image (the case will be saved without the new one)."); }
       }
       const row = {
         pattern_type: patternType,
@@ -351,16 +363,23 @@ function PatternCaseModal({ supaUrl, supaKey, onClose, onDone }) {
         entered: verdict === "si_es" && sub === "perfecto",
         pair: pair || null,
         timeframe,
+        found_date: foundDate || null,
         rules,
         description,
         image_url,
         tradingview_link: tvLink || null,
       };
-      const r = await fetch(`${supaUrl}/rest/v1/pattern_library`, {
-        method: "POST",
-        headers: { apikey: supaKey, Authorization: `Bearer ${supaKey}`, "Content-Type": "application/json", Prefer: "return=representation" },
-        body: JSON.stringify(row),
-      });
+      const commonHeaders = { apikey: supaKey, Authorization: `Bearer ${supaKey}`, "Content-Type": "application/json", Prefer: "return=representation" };
+      let r;
+      if (isEdit) {
+        r = await fetch(`${supaUrl}/rest/v1/pattern_library?id=eq.${entry.id}`, {
+          method: "PATCH", headers: commonHeaders, body: JSON.stringify(row),
+        });
+      } else {
+        r = await fetch(`${supaUrl}/rest/v1/pattern_library`, {
+          method: "POST", headers: commonHeaders, body: JSON.stringify(row),
+        });
+      }
       if (!r.ok) throw new Error(await r.text());
       onDone();
     } catch (e) {
@@ -370,7 +389,7 @@ function PatternCaseModal({ supaUrl, supaKey, onClose, onDone }) {
   };
 
   return (
-    <Modal title="CLASSIFY CASE" onClose={onClose}>
+    <Modal title={isEdit ? "EDIT CASE" : "CLASSIFY CASE"} onClose={onClose}>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <Sel label="VERDICT" value={verdict} onChange={setVerdict}
           options={[{ value: "si_es", label: "VALID" }, { value: "no_es", label: "INVALID" }]} placeholder="" />
@@ -387,6 +406,10 @@ function PatternCaseModal({ supaUrl, supaKey, onClose, onDone }) {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <Inp label="PAIR" value={pair} onChange={setPair} placeholder="GBP/NZD" />
         <Sel label="TIMEFRAME" value={timeframe} onChange={setTimeframe} options={["1H", "4H", "15m", "D"]} placeholder="" />
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <Inp label="DATE FOUND (ON TRADINGVIEW)" value={foundDate} onChange={setFoundDate} type="date" />
+        <div />
       </div>
 
       <div style={{ marginBottom: 13 }}>
@@ -410,7 +433,7 @@ function PatternCaseModal({ supaUrl, supaKey, onClose, onDone }) {
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 2 }}>
         <div style={{ marginBottom: 13 }}>
-          <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>SCREENSHOT (image)</div>
+          <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>SCREENSHOT (image){isEdit && entry.image_url ? " - leave empty to keep current" : ""}</div>
           <input type="file" accept="image/*" onChange={e => setFile(e.target.files[0])}
             style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "7px 10px", borderRadius: 6, fontSize: 11, fontFamily: "Inter, sans-serif" }} />
         </div>
@@ -418,23 +441,24 @@ function PatternCaseModal({ supaUrl, supaKey, onClose, onDone }) {
       </div>
 
       <div style={{ display: "flex", gap: 10 }}>
-        <Btn onClick={save} disabled={saving} full>{saving ? "Saving..." : "Save case"}</Btn>
+        <Btn onClick={save} disabled={saving} full>{saving ? "Saving..." : (isEdit ? "Save changes" : "Save case")}</Btn>
       </div>
     </Modal>
   );
 }
 
 // -- Case detail ---------------------------------------------------------------
-function PatternCaseView({ entry, onClose, onDelete }) {
+function PatternCaseView({ entry, onClose, onDelete, onEdit }) {
   const v = libVerdict(entry.verdict, entry.sub_verdict);
   return (
     <Modal title={`${libPatLabel(entry.pattern_type)}`} onClose={onClose}>
       {entry.image_url && <img src={entry.image_url} alt="" style={{ width: "100%", maxHeight: 320, objectFit: "contain", background: C.bg, borderRadius: 8, marginBottom: 14, display: "block" }} />}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
         <span style={{ fontSize: 11, fontWeight: 700, color: v.color, letterSpacing: 1 }}>{v.label}</span>
         {entry.direction && <Tag>{entry.direction}</Tag>}
         {entry.pair && <Tag>{entry.pair}</Tag>}
         {entry.timeframe && <Tag color={C.accent}>{entry.timeframe}</Tag>}
+        {entry.found_date && <Tag color={C.gold}>📅 {entry.found_date}</Tag>}
       </div>
 
       {(entry.rules || []).length > 0 && (
@@ -456,7 +480,10 @@ function PatternCaseView({ entry, onClose, onDelete }) {
         </a>
       )}
 
-      <Btn danger onClick={() => { if (confirm("Delete this case?")) onDelete(entry.id); }} full>Delete case</Btn>
+      <div style={{ display: "flex", gap: 10 }}>
+        <Btn ghost onClick={() => onEdit(entry)} full>Edit case</Btn>
+        <Btn danger onClick={() => { if (confirm("Delete this case?")) onDelete(entry.id); }} full>Delete</Btn>
+      </div>
     </Modal>
   );
 }
