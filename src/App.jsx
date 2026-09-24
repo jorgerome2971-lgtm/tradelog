@@ -85,23 +85,23 @@ function Btn({ children, onClick, color = C.accent, ghost = false, danger = fals
 }
 
 // ============ COMPARTIR TARJETA COMO IMAGEN (para redes) ============
-let _h2i = null;
-function loadH2I() {
-  if (typeof window !== "undefined" && window.htmlToImage) return Promise.resolve(window.htmlToImage);
-  if (_h2i) return _h2i;
-  _h2i = new Promise((resolve, reject) => {
+let _cap = null;
+function loadCap() {
+  if (typeof window !== "undefined" && window.html2canvas) return Promise.resolve(window.html2canvas);
+  if (_cap) return _cap;
+  _cap = new Promise((resolve, reject) => {
     const s = document.createElement("script");
-    s.src = "https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js";
-    s.onload = () => resolve(window.htmlToImage);
-    s.onerror = () => { _h2i = null; reject(new Error("lib")); };
+    s.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+    s.onload = () => resolve(window.html2canvas);
+    s.onerror = () => { _cap = null; reject(new Error("lib")); };
     document.head.appendChild(s);
   });
-  return _h2i;
+  return _cap;
 }
 
 async function shareCardNode(node, title) {
   if (!node) return;
-  const h2i = await loadH2I();
+  const h2c = await loadCap();
   const width = Math.round(node.getBoundingClientRect().width) || 360;
   const frame = document.createElement("div");
   frame.style.cssText = `position:fixed;left:-99999px;top:0;width:${width + 44}px;background:#0a0a0a;padding:22px;border-radius:16px;box-sizing:border-box;font-family:'Inter',sans-serif;overflow:hidden;`;
@@ -122,8 +122,10 @@ async function shareCardNode(node, title) {
   frame.appendChild(foot);
   document.body.appendChild(frame);
   try {
+    if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
     await new Promise(r => setTimeout(r, 80));
-    const dataUrl = await h2i.toPng(frame, { pixelRatio: 2, backgroundColor: "#0a0a0a", cacheBust: true });
+    const canvas = await h2c(frame, { backgroundColor: "#0a0a0a", scale: 2, useCORS: true, logging: false });
+    const dataUrl = canvas.toDataURL("image/png");
     const name = `TUS_${(title || "card").replace(/[^a-z0-9]+/gi, "_").slice(0, 40)}.png`;
     try {
       const blob = await (await fetch(dataUrl)).blob();
