@@ -255,6 +255,7 @@ function NavIcon({ id }) {
     charts: <><line x1="6" y1="20" x2="6" y2="11" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="18" y1="20" x2="18" y2="14" /></>,
     backtest: <><path d="M9 3 h6" /><path d="M10 3 v5 L4.5 18 a1.4 1.4 0 0 0 1.2 2.1 h12.6 a1.4 1.4 0 0 0 1.2 -2.1 L15 8 V3" /><line x1="8" y1="14.5" x2="16" y2="14.5" /></>,
     rounds: <><circle cx="12" cy="12" r="8.5" /><circle cx="12" cy="12" r="4.5" /><circle cx="12" cy="12" r="1" /></>,
+    fiscal: <><path d="m14.5 12.5-8 8a2.12 2.12 0 1 1-3-3l8-8" /><path d="m16 16 6-6" /><path d="m8 8 6-6" /><path d="m9 7 8 8" /><path d="m21 11-8-8" /></>,
     compass: <><circle cx="12" cy="12" r="9" /><polygon points="16 8 13.5 13.5 8 16 10.5 10.5" /></>,
     accounts: <><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M8 7 V5.5 A2 2 0 0 1 10 3.5 h4 a2 2 0 0 1 2 2 V7" /></>,
     withdrawals: <><rect x="2.5" y="6" width="19" height="12" rx="2" /><circle cx="12" cy="12" r="2.6" /><line x1="6" y1="12" x2="6" y2="12" /><line x1="18" y1="12" x2="18" y2="12" /></>,
@@ -478,6 +479,7 @@ export default function App() {
     { id: "rounds", icon: "🥊", label: "Fight Rounds" },
     { id: "compass", icon: "🧭", label: "AI Compass" },
     { id: "setupcheck", icon: "🔦", label: "Setup Check" },
+    { id: "fiscal", icon: "⚖️", label: "El Fiscal" },
     { id: "reflections", icon: "📝", label: "Reflections" },
     { id: "accounts", icon: "💼", label: "Accounts" },
     { id: "withdrawals", icon: "💸", label: "Withdrawals" },
@@ -527,7 +529,7 @@ export default function App() {
           <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
             <button className="tus-hamburger" onClick={() => setMenuOpen(true)} style={{ background: "transparent", border: "none", color: C.accent, fontSize: 24, cursor: "pointer", padding: 0, lineHeight: 1 }}>☰</button>
             <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 20, letterSpacing: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {{ dashboard: "DASHBOARD", trades: "TRADE LOG", patterns: "PATTERNS", pairs: "MY PAIRS", charts: "CHARTS", backtest: "BACKTESTING", rounds: "FIGHT ROUNDS", compass: "AI COMPASS", setupcheck: "SETUP CHECK", reflections: "REFLECTIONS", accounts: "ACCOUNTS", withdrawals: "WITHDRAWALS", library: "PATTERNS LIBRARY", links: "STUDY LINKS", firms: "MY FIRMS", omissions: "OMISSIONS" }[tab]}
+              {{ dashboard: "DASHBOARD", trades: "TRADE LOG", patterns: "PATTERNS", pairs: "MY PAIRS", charts: "CHARTS", backtest: "BACKTESTING", rounds: "FIGHT ROUNDS", compass: "AI COMPASS", setupcheck: "SETUP CHECK", fiscal: "EL FISCAL", reflections: "REFLECTIONS", accounts: "ACCOUNTS", withdrawals: "WITHDRAWALS", library: "PATTERNS LIBRARY", links: "STUDY LINKS", firms: "MY FIRMS", omissions: "OMISSIONS" }[tab]}
             </div>
           </div>
           <div style={{ display: "flex", gap: 10 }}>
@@ -550,6 +552,7 @@ export default function App() {
           {tab === "patterns" && <PatternLog patterns={patterns} trades={trades} onView={id => setModal({ type: "view-pattern", id })} />}
           {tab === "compass" && <Compass trades={trades} stats={stats} patName={patName} backtests={backtests} patternLib={patternLib} omissions={omissions} aiResult={aiResult} setAiResult={setAiResult} aiLoading={aiLoading} setAiLoading={setAiLoading} />}
           {tab === "setupcheck" && <SetupCheck trades={trades} backtests={backtests} patternLib={patternLib} patName={patName} reflections={reflections} />}
+          {tab === "fiscal" && <Fiscal trades={trades} />}
           {tab === "reflections" && <Reflections reflections={reflections} onSave={saveReflections} />}
           {tab === "pairs" && <PairsLog pairs={pairs} onEdit={id => setModal({ type: "pair", id })} />}
           {tab === "charts" && <Charts trades={trades} accounts={accounts} acctName={acctName} backtests={backtests} />}
@@ -2023,6 +2026,158 @@ function FightRounds({ tables, onSave }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function Fiscal({ trades }) {
+  const [loading, setLoading] = useState(false);
+  const [caso, setCaso] = useState(null);
+  const [err, setErr] = useState(false);
+
+  const ev = useMemo(() => {
+    const wr = arr => { const w = arr.filter(t => t.result === "win").length; const l = arr.filter(t => t.result === "loss").length; return (w + l) ? Math.round(w / (w + l) * 100) : null; };
+    const closed = trades.filter(t => t.result === "win" || t.result === "loss");
+    const rec = closed.filter(t => Array.isArray(t.rules) && t.rules.length > 0);
+
+    // A) regla más costosa
+    const rules = [];
+    for (let r = 1; r <= 8; r++) {
+      const broken = rec.filter(t => !t.rules.includes(r));
+      const followed = rec.filter(t => t.rules.includes(r));
+      const bWR = wr(broken), fWR = wr(followed);
+      const penalty = (bWR != null && fWR != null) ? fWR - bWR : null;
+      rules.push({ r, text: TRADE_RULES[r], brokenN: broken.length, bWR, fWR, penalty });
+    }
+    const cand = rules.filter(x => x.brokenN >= 3 && x.penalty != null).sort((a, b) => (b.penalty * b.brokenN) - (a.penalty * a.brokenN));
+    const worstRule = cand[0] || null;
+
+    // B) disciplina vs varianza
+    const perfect = rec.filter(t => t.rules.length === 8);
+    const imperfect = rec.filter(t => t.rules.length < 8);
+    const disc = { perfectN: perfect.length, perfectWR: wr(perfect), impN: imperfect.length, impWR: wr(imperfect) };
+
+    // C) cascada de tilt (secuencia real)
+    const seq = [...closed].sort((a, b) => ((a.date || "") + (a.time || "")).localeCompare((b.date || "") + (b.time || "")));
+    const baseLoss = seq.length ? Math.round(seq.filter(t => t.result === "loss").length / seq.length * 100) : null;
+    const post2L = [], after2LRules = [];
+    for (let i = 2; i < seq.length; i++) {
+      if (seq[i - 1].result === "loss" && seq[i - 2].result === "loss") {
+        post2L.push(seq[i]);
+        if (Array.isArray(seq[i].rules) && seq[i].rules.length) after2LRules.push(seq[i].rules.length);
+      }
+    }
+    const post2Lloss = post2L.length ? Math.round(post2L.filter(t => t.result === "loss").length / post2L.length * 100) : null;
+    const avgRules = rec.length ? +(rec.reduce((a, t) => a + t.rules.length, 0) / rec.length).toFixed(1) : null;
+    const avgRulesPost = after2LRules.length ? +(after2LRules.reduce((a, v) => a + v, 0) / after2LRules.length).toFixed(1) : null;
+    const tilt = { baseLoss, post2LN: post2L.length, post2Lloss, avgRules, avgRulesPost };
+
+    // D) emoción más cara
+    const emoMap = {};
+    rec.forEach(t => { const e = t.emotion || "—"; (emoMap[e] = emoMap[e] || []).push(t); });
+    const worstEmo = Object.entries(emoMap).map(([e, arr]) => ({ e, n: arr.length, wr: wr(arr) })).filter(x => x.n >= 4 && x.wr != null).sort((a, b) => a.wr - b.wr)[0] || null;
+
+    return { closedN: closed.length, nRec: rec.length, overallWR: wr(closed), worstRule, disc, tilt, worstEmo };
+  }, [trades]);
+
+  const run = async () => {
+    setLoading(true); setCaso(null); setErr(false);
+    try {
+      const prompt = `Eres "El Fiscal": un fiscal implacable pero justo que enjuicia la DISCIPLINA de un trader usando SOLO los números ya calculados que te doy (NO inventes ni estimes ninguna cifra; si un dato viene null, no lo uses). Responde en español, texto plano, sin markdown ni asteriscos, sin preámbulo. Usa exactamente estas 4 etiquetas en líneas propias:
+EL CASO: 2-3 frases con el patrón de indisciplina más fuerte y sus números.
+LA EVIDENCIA: 3 líneas cortas con cifras exactas (regla más costosa, disciplina 8/8 vs <8/8, cascada de tilt), citando la muestra (n). No afirmes con fuerza si n<8.
+VEREDICTO: 1 frase honesta — ¿tus pérdidas son mala suerte o indisciplina, según los datos?
+SENTENCIA: UNA sola corrección concreta para la próxima semana.
+Directo, sin adular. Si la evidencia no alcanza para acusar, dilo. DATOS (ya calculados): ${JSON.stringify(ev)}`;
+      const res = await fetch("/.netlify/functions/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 900, messages: [{ role: "user", content: prompt }] }) });
+      if (!res.ok) throw new Error("s" + res.status);
+      const d = await res.json();
+      setCaso((d.content || []).map(x => x.text || "").join("").trim() || "(sin respuesta)");
+    } catch { setErr(true); }
+    setLoading(false);
+  };
+
+  const Pill = ({ n }) => {
+    const s = n >= 20 ? { t: "SÓLIDO", c: C.green } : n >= 8 ? { t: "INDICATIVO", c: C.gold } : { t: "MUESTRA BAJA", c: C.red };
+    return <span style={{ fontSize: 8, letterSpacing: 1, color: s.c, border: `1px solid ${s.c}55`, borderRadius: 20, padding: "2px 7px", whiteSpace: "nowrap" }}>{s.t} · n={n}</span>;
+  };
+  const Head = (
+    <div style={{ background: `${C.gold}0a`, border: `1px solid ${C.gold}33`, borderRadius: 10, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14 }}>
+      <div style={{ fontSize: 28 }}>⚖️</div>
+      <div><div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 18, letterSpacing: 2, color: C.gold }}>EL FISCAL — TU DISCIPLINA EN JUICIO</div><div style={{ fontSize: 11, color: C.dim, marginTop: 2 }}>Construye el caso en tu contra usando solo tus números — sin adular, sin inventar. {ev.nRec} trades con reglas en evidencia.</div></div>
+    </div>
+  );
+
+  if (ev.nRec < 5) return (
+    <div>{Head}
+      <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 22, marginTop: 16, fontSize: 12.5, color: C.dim, lineHeight: 1.7 }}>
+        El Fiscal necesita al menos <b style={{ color: C.text }}>5 trades cerrados con sus 8 reglas marcadas</b> para armar un caso honesto. Llevas <b style={{ color: C.text }}>{ev.nRec}</b>. Marca las reglas R1–R8 en tus trades y vuelve. Sin evidencia no hay juicio — así no te acuso de patrones que en realidad son azar.
+      </div>
+    </div>
+  );
+
+  const cardS = { background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 16 };
+  const labS = { fontSize: 9, color: C.muted, letterSpacing: 2, marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 };
+  const wS = (v) => ({ fontFamily: "Bebas Neue, sans-serif", fontSize: 26, color: v == null ? C.muted : v >= 50 ? C.green : C.red });
+  const { worstRule: wRule, disc, tilt, worstEmo } = ev;
+
+  return (
+    <div>{Head}
+      <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 16, marginBottom: 12 }}>
+        {/* regla más costosa */}
+        <div style={cardS}>
+          <div style={labS}><span>⚠️ REGLA MÁS COSTOSA</span>{wRule && <Pill n={wRule.brokenN} />}</div>
+          {!wRule ? <div style={{ fontSize: 12, color: C.dim, lineHeight: 1.6 }}>Ninguna regla rota lo suficiente para acusarte todavía — o eres disciplinado, o falta muestra.</div>
+            : <>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 8 }}>{wRule.text}</div>
+              <div style={{ display: "flex", gap: 16 }}>
+                <div><div style={{ fontSize: 9, color: C.red, letterSpacing: 1, marginBottom: 2 }}>LA ROMPES</div><div style={wS(wRule.bWR)}>{wRule.bWR == null ? "—" : wRule.bWR + "%"}</div></div>
+                <div><div style={{ fontSize: 9, color: C.green, letterSpacing: 1, marginBottom: 2 }}>LA RESPETAS</div><div style={wS(wRule.fWR)}>{wRule.fWR == null ? "—" : wRule.fWR + "%"}</div></div>
+                <div><div style={{ fontSize: 9, color: C.dim, letterSpacing: 1, marginBottom: 2 }}>TE CUESTA</div><div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 26, color: C.gold }}>{wRule.penalty == null ? "—" : "-" + wRule.penalty + "pts"}</div></div>
+              </div>
+            </>}
+        </div>
+        {/* suerte o indisciplina */}
+        <div style={cardS}>
+          <div style={labS}><span>🎯 ¿SUERTE O INDISCIPLINA?</span><Pill n={disc.perfectN + disc.impN} /></div>
+          <div style={{ display: "flex", gap: 16 }}>
+            <div><div style={{ fontSize: 9, color: C.green, letterSpacing: 1, marginBottom: 2 }}>8/8 REGLAS</div><div style={wS(disc.perfectWR)}>{disc.perfectWR == null ? "—" : disc.perfectWR + "%"}</div><div style={{ fontSize: 9, color: C.dim }}>{disc.perfectN} trades</div></div>
+            <div><div style={{ fontSize: 9, color: C.red, letterSpacing: 1, marginBottom: 2 }}>MENOS DE 8/8</div><div style={wS(disc.impWR)}>{disc.impWR == null ? "—" : disc.impWR + "%"}</div><div style={{ fontSize: 9, color: C.dim }}>{disc.impN} trades</div></div>
+          </div>
+          <div style={{ fontSize: 10, color: C.muted, marginTop: 10, lineHeight: 1.5 }}>Si 8/8 gana mucho más, tus pérdidas son indisciplina, no mala suerte.</div>
+        </div>
+        {/* cascada de tilt */}
+        <div style={cardS}>
+          <div style={labS}><span>🩸 CASCADA DE TILT</span>{tilt.post2LN > 0 && <Pill n={tilt.post2LN} />}</div>
+          {tilt.post2LN === 0 ? <div style={{ fontSize: 12, color: C.dim, lineHeight: 1.6 }}>Aún no hay rachas de 2 pérdidas seguidas que analizar. Buena señal, o poca muestra.</div>
+            : <>
+              <div style={{ display: "flex", gap: 16 }}>
+                <div><div style={{ fontSize: 9, color: C.dim, letterSpacing: 1, marginBottom: 2 }}>% PÉRDIDA BASE</div><div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 26, color: C.text }}>{tilt.baseLoss == null ? "—" : tilt.baseLoss + "%"}</div></div>
+                <div><div style={{ fontSize: 9, color: C.red, letterSpacing: 1, marginBottom: 2 }}>TRAS 2 PÉRDIDAS</div><div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 26, color: (tilt.post2Lloss != null && tilt.baseLoss != null && tilt.post2Lloss > tilt.baseLoss) ? C.red : C.text }}>{tilt.post2Lloss == null ? "—" : tilt.post2Lloss + "%"}</div></div>
+              </div>
+              {tilt.avgRulesPost != null && <div style={{ fontSize: 10, color: C.muted, marginTop: 10, lineHeight: 1.5 }}>Disciplina promedio: {tilt.avgRules}/8 · tras 2 pérdidas: <span style={{ color: tilt.avgRulesPost < tilt.avgRules ? C.red : C.text }}>{tilt.avgRulesPost}/8</span></div>}
+            </>}
+        </div>
+        {/* emoción más cara */}
+        <div style={cardS}>
+          <div style={labS}><span>🧠 EMOCIÓN MÁS CARA</span>{worstEmo && <Pill n={worstEmo.n} />}</div>
+          {!worstEmo ? <div style={{ fontSize: 12, color: C.dim, lineHeight: 1.6 }}>Marca la emoción en tus trades para descubrir cuál te sale más cara.</div>
+            : <><div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 28, color: C.text }}>{worstEmo.e}</div><div style={{ fontSize: 12, color: worstEmo.wr < 50 ? C.red : C.green, marginTop: 2 }}>{worstEmo.wr}% win rate cuando operas así</div></>}
+        </div>
+      </div>
+
+      <button onClick={run} disabled={loading} style={{ width: "100%", padding: "13px", background: loading ? C.panel2 : C.gold, color: loading ? C.gold : "#000", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 700, letterSpacing: 2, cursor: loading ? "wait" : "pointer", fontFamily: "Inter, sans-serif" }}>
+        {loading ? "EL FISCAL REVISA EL EXPEDIENTE…" : "⚖️ QUE EL FISCAL PRESENTE SU CASO"}
+      </button>
+
+      {err && <div style={{ marginTop: 12, fontSize: 12, color: C.red }}>No se pudo contactar al Fiscal. Intenta de nuevo.</div>}
+      {caso && (
+        <div style={{ marginTop: 14, background: C.panel, border: `1px solid ${C.gold}44`, borderLeft: `3px solid ${C.gold}`, borderRadius: 10, padding: "18px 20px" }}>
+          <div style={{ fontSize: 9, color: C.gold, letterSpacing: 3, marginBottom: 12 }}>⚖️ EL CASO DEL FISCAL</div>
+          <div style={{ fontSize: 13.5, color: C.text, lineHeight: 1.75, whiteSpace: "pre-wrap" }}>{caso}</div>
+          <div style={{ fontSize: 10, color: C.muted, marginTop: 14, lineHeight: 1.5 }}>El Fiscal solo argumenta los números de arriba — no inventa cifras. Tú tienes la última palabra.</div>
+        </div>
+      )}
     </div>
   );
 }
