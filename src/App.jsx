@@ -2244,18 +2244,18 @@ function Detective({ trades, omissions }) {
   };
   const Row = ({ s, good }) => (<div style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 0", borderBottom: `1px solid ${C.border}` }}><div style={{ flex: 1, fontSize: 11, color: C.text }}><span style={{ color: C.muted }}>{s.dim}:</span> {s.v}</div><div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 18, color: good ? C.green : C.red, width: 46, textAlign: "right" }}>{s.wr}%</div><div style={{ fontSize: 9, color: C.muted, width: 34, textAlign: "right" }}>n={s.n}</div></div>);
   const sub = `Sees the combinations the eye can't reach. ${ev.closedN} closed trades, ${ev.qN} segments with sample.`;
-  if (ev.qN < 3) return (<div><AgHead icon="🕵️" title="THE DETECTIVE — HIDDEN CORRELATIONS" sub={sub} color={C.gold} /><div style={{ ...AG_CARD, marginTop: 16, fontSize: 12.5, color: C.dim, lineHeight: 1.7 }}>The Detective needs volume so it doesn't invent smoke patterns. There aren't enough segments with at least 4 trades yet. Keep logging and come back — it's the most powerful, but the one that most easily lies with little data.</div></div>);
+  if (ev.qN < 3) return (<div><AgHead icon="🕵️" title="THE DETECTIVE — HIDDEN CORRELATIONS" sub={sub} color={C.accent} /><div style={{ ...AG_CARD, marginTop: 16, fontSize: 12.5, color: C.dim, lineHeight: 1.7 }}>The Detective needs volume so it doesn't invent smoke patterns. There aren't enough segments with at least 4 trades yet. Keep logging and come back — it's the most powerful, but the one that most easily lies with little data.</div></div>);
   return (<div>
-    <AgHead icon="🕵️" title="THE DETECTIVE — HIDDEN CORRELATIONS" sub={sub} color={C.gold} />
+    <AgHead icon="🕵️" title="THE DETECTIVE — HIDDEN CORRELATIONS" sub={sub} color={C.accent} />
     <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, margin: "16px 0 10px" }}>
       <div style={AG_CARD}><div style={AG_LAB}><span>✅ YOUR BEST GROUND</span></div>{ev.edges.map((s, i) => <Row key={i} s={s} good />)}</div>
       <div style={AG_CARD}><div style={AG_LAB}><span>🩸 YOUR LEAKS</span></div>{ev.leaks.map((s, i) => <Row key={i} s={s} />)}</div>
     </div>
     <div style={{ fontSize: 10, color: C.muted, marginBottom: 10, lineHeight: 1.5 }}>Only segments with n≥4. A high win-rate on a small n is still noise.</div>
-    <AgRunBtn loading={loading} onClick={run} idle="🕵️ LET THE DETECTIVE MAP IT OUT" busy="THE DETECTIVE IS CROSSING THE DATA…" color={C.gold} />
+    <AgRunBtn loading={loading} onClick={run} idle="🕵️ LET THE DETECTIVE MAP IT OUT" busy="THE DETECTIVE IS CROSSING THE DATA…" color={C.accent} />
     <AgTrace trace={trace} loading={loading} />
     {err && <div style={{ marginTop: 12, fontSize: 12, color: C.red }}>Couldn't reach the Detective. Try again.</div>}
-    <AgCaso label="🕵️ THE DETECTIVE'S REPORT" text={caso} color={C.gold} />
+    <AgCaso label="🕵️ THE DETECTIVE'S REPORT" text={caso} color={C.accent} />
   </div>);
 }
 
@@ -2289,19 +2289,19 @@ function Abogado({ trades, omissions }) {
     setLoading(false);
   };
   const sub = `Challenges what you believe about yourself and hunts your fallacies. ${ev.closedN} trades on the table.`;
-  if (ev.closedN < 8) return (<div><AgHead icon="😈" title="DEVIL'S ADVOCATE — BELIEFS & FALLACIES" sub={sub} color={C.red} /><div style={{ ...AG_CARD, marginTop: 16, fontSize: 12.5, color: C.dim, lineHeight: 1.7 }}>Needs at least <b style={{ color: C.text }}>8 closed trades</b> to challenge your beliefs with a base. You have <b style={{ color: C.text }}>{ev.closedN}</b>. To get the most out of it, also log conviction (1-10) and risk on each trade.</div></div>);
+  if (ev.closedN < 8) return (<div><AgHead icon="😈" title="DEVIL'S ADVOCATE — BELIEFS & FALLACIES" sub={sub} color={C.accent} /><div style={{ ...AG_CARD, marginTop: 16, fontSize: 12.5, color: C.dim, lineHeight: 1.7 }}>Needs at least <b style={{ color: C.text }}>8 closed trades</b> to challenge your beliefs with a base. You have <b style={{ color: C.text }}>{ev.closedN}</b>. To get the most out of it, also log conviction (1-10) and risk on each trade.</div></div>);
   const St = ({ lab, val, color, note }) => (<div style={AG_CARD}><div style={AG_LAB}><span>{lab}</span></div><div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 24, color: color || C.text }}>{val}</div>{note && <div style={{ fontSize: 10, color: C.dim, marginTop: 3 }}>{note}</div>}</div>);
   return (<div>
-    <AgHead icon="😈" title="DEVIL'S ADVOCATE — BELIEFS & FALLACIES" sub={sub} color={C.red} />
+    <AgHead icon="😈" title="DEVIL'S ADVOCATE — BELIEFS & FALLACIES" sub={sub} color={C.accent} />
     <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, margin: "16px 0 12px" }}>
       <St lab="AVG WIN vs LOSS" val={ev.rr == null ? "—" : ev.rr + "R"} color={ev.rr != null && ev.rr < 1 ? C.red : C.green} note={ev.avgWin != null ? `+${ev.avgWin} win · -${ev.avgLoss} loss` : "missing pnl data"} />
       <St lab="WR HIGH CONVICTION (8-10)" val={ev.hiWR == null ? "—" : ev.hiWR + "%"} color={ev.hiWR == null ? C.muted : ev.hiWR >= 75 ? C.green : C.red} note={ev.hiN ? `${ev.hiN} trades · expected ~90%` : "log conviction"} />
       <St lab="SIZE AFTER LOSS / WIN" val={ev.sizeAfterLoss == null || ev.sizeAfterWin == null ? "—" : `${ev.sizeAfterLoss} / ${ev.sizeAfterWin}`} color={ev.sizeAfterLoss != null && ev.sizeAfterWin != null && ev.sizeAfterLoss > ev.sizeAfterWin ? C.red : C.text} note={ev.afterLossN ? `${ev.afterLossN} after loss · ${ev.afterWinN} after win` : "missing data"} />
     </div>
-    <AgRunBtn loading={loading} onClick={run} idle="😈 LET THE ADVOCATE CHALLENGE YOU" busy="THE ADVOCATE IS PREPARING ITS ARGUMENT…" color={C.red} />
+    <AgRunBtn loading={loading} onClick={run} idle="😈 LET THE ADVOCATE CHALLENGE YOU" busy="THE ADVOCATE IS PREPARING ITS ARGUMENT…" color={C.accent} />
     <AgTrace trace={trace} loading={loading} />
     {err && <div style={{ marginTop: 12, fontSize: 12, color: C.red }}>Couldn't reach the Advocate. Try again.</div>}
-    <AgCaso label="😈 THE ARGUMENT" text={caso} color={C.red} />
+    <AgCaso label="😈 THE ARGUMENT" text={caso} color={C.accent} />
   </div>);
 }
 
@@ -2351,10 +2351,10 @@ function Cazador({ omissions, backtests, trades }) {
 function Agentes({ trades, backtests, omissions }) {
   const [sub, setSub] = useState("fiscal");
   const list = [
-    { id: "fiscal", icon: "⚖️", name: "The Prosecutor", tag: "Discipline", c: C.gold },
+    { id: "fiscal", icon: "⚖️", name: "The Prosecutor", tag: "Discipline", c: C.accent },
     { id: "confesor", icon: "🕯️", name: "The Confessor", tag: "Your Language", c: C.accent },
-    { id: "detective", icon: "🕵️", name: "The Detective", tag: "Correlations", c: C.gold },
-    { id: "abogado", icon: "😈", name: "Devil's Advocate", tag: "Fallacies", c: C.red },
+    { id: "detective", icon: "🕵️", name: "The Detective", tag: "Correlations", c: C.accent },
+    { id: "abogado", icon: "😈", name: "Devil's Advocate", tag: "Fallacies", c: C.accent },
     { id: "cazador", icon: "🎯", name: "The Hunter", tag: "Opportunity", c: C.accent },
   ];
   return (
@@ -2444,9 +2444,9 @@ function Fiscal({ trades, omissions }) {
     return <span style={{ fontSize: 8, letterSpacing: 1, color: s.c, border: `1px solid ${s.c}55`, borderRadius: 20, padding: "2px 7px", whiteSpace: "nowrap" }}>{s.t} · n={n}</span>;
   };
   const Head = (
-    <div style={{ background: `${C.gold}0a`, border: `1px solid ${C.gold}33`, borderRadius: 10, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14 }}>
+    <div style={{ background: `${C.accent}0a`, border: `1px solid ${C.accent}33`, borderRadius: 10, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14 }}>
       <div style={{ fontSize: 28 }}>⚖️</div>
-      <div><div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 18, letterSpacing: 2, color: C.gold }}>THE PROSECUTOR — DISCIPLINE ON TRIAL</div><div style={{ fontSize: 11, color: C.dim, marginTop: 2 }}>Builds the case against you using only your numbers — no flattery, no invention. {ev.nRec} trades with rules in evidence.</div></div>
+      <div><div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 18, letterSpacing: 2, color: C.accent }}>THE PROSECUTOR — DISCIPLINE ON TRIAL</div><div style={{ fontSize: 11, color: C.dim, marginTop: 2 }}>Builds the case against you using only your numbers — no flattery, no invention. {ev.nRec} trades with rules in evidence.</div></div>
     </div>
   );
 
@@ -2508,15 +2508,15 @@ function Fiscal({ trades, omissions }) {
         </div>
       </div>
 
-      <button onClick={run} disabled={loading} style={{ width: "100%", padding: "13px", background: loading ? C.panel2 : C.gold, color: loading ? C.gold : "#000", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 700, letterSpacing: 2, cursor: loading ? "wait" : "pointer", fontFamily: "Inter, sans-serif" }}>
+      <button onClick={run} disabled={loading} style={{ width: "100%", padding: "13px", background: loading ? C.panel2 : C.accent, color: loading ? C.accent : "#000", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 700, letterSpacing: 2, cursor: loading ? "wait" : "pointer", fontFamily: "Inter, sans-serif" }}>
         {loading ? "THE PROSECUTOR IS REVIEWING THE FILE…" : "⚖️ LET THE PROSECUTOR MAKE THE CASE"}
       </button>
 
       <AgTrace trace={trace} loading={loading} />
       {err && <div style={{ marginTop: 12, fontSize: 12, color: C.red }}>Couldn't reach the Prosecutor. Try again.</div>}
       {caso && (
-        <div style={{ marginTop: 14, background: C.panel, border: `1px solid ${C.gold}44`, borderLeft: `3px solid ${C.gold}`, borderRadius: 10, padding: "18px 20px" }}>
-          <div style={{ fontSize: 9, color: C.gold, letterSpacing: 3, marginBottom: 12 }}>⚖️ THE PROSECUTOR'S CASE</div>
+        <div style={{ marginTop: 14, background: C.panel, border: `1px solid ${C.accent}44`, borderLeft: `3px solid ${C.accent}`, borderRadius: 10, padding: "18px 20px" }}>
+          <div style={{ fontSize: 9, color: C.accent, letterSpacing: 3, marginBottom: 12 }}>⚖️ THE PROSECUTOR'S CASE</div>
           <div style={{ fontSize: 13.5, color: C.text, lineHeight: 1.75, whiteSpace: "pre-wrap" }}>{caso}</div>
           <div style={{ fontSize: 10, color: C.muted, marginTop: 14, lineHeight: 1.5 }}>The Prosecutor only argues the numbers above — it makes up no figures. You have the final word.</div>
         </div>
