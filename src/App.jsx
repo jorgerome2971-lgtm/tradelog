@@ -480,7 +480,7 @@ export default function App() {
     { id: "rounds", icon: "🥊", label: "Fight Rounds" },
     { id: "compass", icon: "🧭", label: "AI Compass" },
     { id: "setupcheck", icon: "🔦", label: "Setup Check" },
-    { id: "agentes", icon: "⚖️", label: "Agentes IA" },
+    { id: "agentes", icon: "⚖️", label: "AI Agents" },
     { id: "reflections", icon: "📝", label: "Reflections" },
     { id: "accounts", icon: "💼", label: "Accounts" },
     { id: "withdrawals", icon: "💸", label: "Withdrawals" },
@@ -530,7 +530,7 @@ export default function App() {
           <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
             <button className="tus-hamburger" onClick={() => setMenuOpen(true)} style={{ background: "transparent", border: "none", color: C.accent, fontSize: 24, cursor: "pointer", padding: 0, lineHeight: 1 }}>☰</button>
             <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 20, letterSpacing: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {{ dashboard: "DASHBOARD", trades: "TRADE LOG", patterns: "PATTERNS", pairs: "MY PAIRS", charts: "CHARTS", backtest: "BACKTESTING", rounds: "FIGHT ROUNDS", compass: "AI COMPASS", setupcheck: "SETUP CHECK", agentes: "AGENTES IA", reflections: "REFLECTIONS", accounts: "ACCOUNTS", withdrawals: "WITHDRAWALS", library: "PATTERNS LIBRARY", links: "STUDY LINKS", firms: "MY FIRMS", omissions: "OMISSIONS" }[tab]}
+              {{ dashboard: "DASHBOARD", trades: "TRADE LOG", patterns: "PATTERNS", pairs: "MY PAIRS", charts: "CHARTS", backtest: "BACKTESTING", rounds: "FIGHT ROUNDS", compass: "AI COMPASS", setupcheck: "SETUP CHECK", agentes: "AI AGENTS", reflections: "REFLECTIONS", accounts: "ACCOUNTS", withdrawals: "WITHDRAWALS", library: "PATTERNS LIBRARY", links: "STUDY LINKS", firms: "MY FIRMS", omissions: "OMISSIONS" }[tab]}
             </div>
           </div>
           <div style={{ display: "flex", gap: 10 }}>
@@ -853,7 +853,7 @@ function Compass({ trades, stats, patName, backtests, patternLib, omissions, aiR
       const tradesData = JSON.stringify(trades.slice(-40).map(t => ({ pair: t.pair, type: t.type, pattern: patName(t.patternId), session: t.session, day: t.day, emotion: t.emotion || "-", result: t.result, pnl: t.pnl, rules: t.rules })));
       const btData = JSON.stringify(backtests.slice(-25).map(b => ({ pair: b.pair, pattern: patName(b.patternId), result: b.result, pnl: b.pnl })));
       const libData = JSON.stringify(patternLib.slice(-40).map(e => ({ pattern: e.pattern_type, pair: e.pair, verdict: e.verdict === "no_es" ? "INVALID" : "VALID", rules: e.rules })));
-      const prompt = "You are an expert forex trading coach with full access to this trader's own logged data. Answer the trader's question directly, specifically and honestly in English, plain text only, no markdown, no preamble. Base your answer ONLY on the data provided; if the data is insufficient, say so plainly. Keep it under 6 sentences unless the question truly needs more. STATS: " + statsData + " REAL_TRADES: " + tradesData + " BACKTESTS: " + btData + " LIBRARY: " + libData + " RULE_LEGEND: " + JSON.stringify(LIB_RULE_LABELS) + " QUESTION: " + q;
+      const prompt = "You are an expert forex trading coach with full access to this trader's own logged data. Answer the trader's question directly, specifically and honestly, REPLYING IN THE SAME LANGUAGE THE TRADER USED IN THEIR QUESTION, plain text only, no markdown, no preamble. Base your answer ONLY on the data provided; if the data is insufficient, say so plainly. Keep it under 6 sentences unless the question truly needs more. STATS: " + statsData + " REAL_TRADES: " + tradesData + " BACKTESTS: " + btData + " LIBRARY: " + libData + " RULE_LEGEND: " + JSON.stringify(LIB_RULE_LABELS) + " QUESTION: " + q;
       const res = await fetch("/.netlify/functions/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 700, messages: [{ role: "user", content: prompt }] }) });
       if (!res.ok) throw new Error("status " + res.status);
       const data = await res.json();
@@ -1004,7 +1004,7 @@ function Reflections({ reflections, onSave }) {
     setAiBusy(true); setAiRes(null);
     try {
       const data = reflections.map((r, i) => ({ i, text: (r.text || "").slice(0, 240), category: r.category, pair: r.pair, tf: r.timeframe, date: (r.created_at || "").slice(0, 10) }));
-      const prompt = "You are helping a trader search and reason over THEIR OWN reflections (personal trading notes). Answer their question directly in English, plain text, no markdown, no preamble. Reply ONLY with valid JSON: {\"answer\":\"2-5 sentence answer synthesizing what they noted\",\"matches\":[indices of the reflections most relevant to the question, most relevant first]}. If nothing fits, say so plainly and use an empty matches array. REFLECTIONS: " + JSON.stringify(data) + " QUESTION: " + qq;
+      const prompt = "You are helping a trader search and reason over THEIR OWN reflections (personal trading notes). Answer their question directly, WRITING THE ANSWER IN THE SAME LANGUAGE THE TRADER USED IN THEIR QUESTION, plain text, no markdown, no preamble. Reply ONLY with valid JSON (keys in English): {\"answer\":\"2-5 sentence answer synthesizing what they noted, in the trader's language\",\"matches\":[indices of the reflections most relevant to the question, most relevant first]}. If nothing fits, say so plainly and use an empty matches array. REFLECTIONS: " + JSON.stringify(data) + " QUESTION: " + qq;
       const r = await fetch("/.netlify/functions/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 900, messages: [{ role: "user", content: prompt }] }) });
       if (!r.ok) throw new Error("s" + r.status);
       const d = await r.json();
@@ -2038,7 +2038,7 @@ async function agentAsk(prompt, max = 900) {
   const d = await res.json();
   return (d.content || []).map(x => x.text || "").join("").trim();
 }
-function agConf(n) { return n >= 20 ? { t: "SÓLIDO", c: C.green } : n >= 8 ? { t: "INDICATIVO", c: C.gold } : { t: "MUESTRA BAJA", c: C.red }; }
+function agConf(n) { return n >= 20 ? { t: "SOLID", c: C.green } : n >= 8 ? { t: "INDICATIVE", c: C.gold } : { t: "LOW SAMPLE", c: C.red }; }
 function AgPill({ n }) { const s = agConf(n); return <span style={{ fontSize: 8, letterSpacing: 1, color: s.c, border: `1px solid ${s.c}55`, borderRadius: 20, padding: "2px 7px", whiteSpace: "nowrap" }}>{s.t} · n={n}</span>; }
 function AgHead({ icon, title, sub, color = C.gold }) {
   return (<div style={{ background: `${color}0a`, border: `1px solid ${color}33`, borderRadius: 10, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14 }}><div style={{ fontSize: 28 }}>{icon}</div><div><div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 18, letterSpacing: 2, color }}>{title}</div><div style={{ fontSize: 11, color: C.dim, marginTop: 2 }}>{sub}</div></div></div>);
@@ -2048,7 +2048,7 @@ function AgRunBtn({ loading, onClick, idle, busy, color = C.gold }) {
 }
 function AgCaso({ label, text, color = C.gold }) {
   if (!text) return null;
-  return (<div style={{ marginTop: 14, background: C.panel, border: `1px solid ${color}44`, borderLeft: `3px solid ${color}`, borderRadius: 10, padding: "18px 20px" }}><div style={{ fontSize: 9, color, letterSpacing: 3, marginBottom: 12 }}>{label}</div><div style={{ fontSize: 13.5, color: C.text, lineHeight: 1.75, whiteSpace: "pre-wrap" }}>{text}</div><div style={{ fontSize: 10, color: C.muted, marginTop: 14, lineHeight: 1.5 }}>El agente solo argumenta los datos de arriba — no inventa cifras. Tú tienes la última palabra.</div></div>);
+  return (<div style={{ marginTop: 14, background: C.panel, border: `1px solid ${color}44`, borderLeft: `3px solid ${color}`, borderRadius: 10, padding: "18px 20px" }}><div style={{ fontSize: 9, color, letterSpacing: 3, marginBottom: 12 }}>{label}</div><div style={{ fontSize: 13.5, color: C.text, lineHeight: 1.75, whiteSpace: "pre-wrap" }}>{text}</div><div style={{ fontSize: 10, color: C.muted, marginTop: 14, lineHeight: 1.5 }}>The agent only argues the data above — it makes up no figures. You have the final word.</div></div>);
 }
 const AG_CARD = { background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 16 };
 const AG_LAB = { fontSize: 9, color: C.muted, letterSpacing: 2, marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 };
@@ -2174,9 +2174,9 @@ async function runAgent(task, data, setTrace) {
 function AgTrace({ trace, loading }) {
   if (!trace.length && !loading) return null;
   return (<div style={{ marginTop: 12, fontSize: 10, color: C.muted, lineHeight: 1.7 }}>
-    <span style={{ color: C.dim, letterSpacing: 1 }}>🔍 CÓMO INVESTIGÓ{loading ? " (en curso…)" : ` · ${trace.length} pasos`}: </span>
+    <span style={{ color: C.dim, letterSpacing: 1 }}>🔍 HOW IT INVESTIGATED{loading ? " (in progress…)" : ` · ${trace.length} steps`}: </span>
     {trace.map((s, i) => <span key={i} style={{ color: C.text }}>{i > 0 ? " · " : ""}{s.name}{s.input && Object.keys(s.input).length ? `(${Object.values(s.input).join(",")})` : ""}</span>)}
-    {loading && !trace.length && <span>iniciando…</span>}
+    {loading && !trace.length && <span>starting…</span>}
   </div>);
 }
 
@@ -2196,18 +2196,18 @@ function Confesor({ trades, omissions }) {
     } catch { setErr(true); }
     setLoading(false);
   };
-  const sub = `Lee tus notas en frío para encontrar el lenguaje que te delata. ${docs.length} trades con notas.`;
-  if (docs.length < 6) return (<div><AgHead icon="🕯️" title="EL CONFESOR — TUS PROPIAS PALABRAS" sub={sub} color={C.accent} /><div style={{ ...AG_CARD, marginTop: 16, fontSize: 12.5, color: C.dim, lineHeight: 1.7 }}>El Confesor necesita al menos <b style={{ color: C.text }}>6 trades con notas escritas</b> (entrada, salida o errores). Llevas <b style={{ color: C.text }}>{docs.length}</b>. Mientras más escribas en cada trade — por qué entraste, qué sentiste, qué fallaste — más te va a leer.</div></div>);
+  const sub = `Reads your notes in cold blood to find the language that gives you away. ${docs.length} trades with notes.`;
+  if (docs.length < 6) return (<div><AgHead icon="🕯️" title="THE CONFESSOR — YOUR OWN WORDS" sub={sub} color={C.accent} /><div style={{ ...AG_CARD, marginTop: 16, fontSize: 12.5, color: C.dim, lineHeight: 1.7 }}>The Confessor needs at least <b style={{ color: C.text }}>6 trades with written notes</b> (entry, exit or mistakes). You have <b style={{ color: C.text }}>{docs.length}</b>. The more you write on each trade — why you entered, what you felt, what you got wrong — the more it can read you.</div></div>);
   return (<div>
-    <AgHead icon="🕯️" title="EL CONFESOR — TUS PROPIAS PALABRAS" sub={sub} color={C.accent} />
+    <AgHead icon="🕯️" title="THE CONFESSOR — YOUR OWN WORDS" sub={sub} color={C.accent} />
     <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, margin: "16px 0 12px" }}>
-      <div style={AG_CARD}><div style={AG_LAB}><span>🗒️ TRADES CON NOTAS</span></div><div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 30, color: C.text }}>{docs.length}</div><div style={{ fontSize: 10, color: C.dim }}>tu material en bruto</div></div>
-      <div style={AG_CARD}><div style={AG_LAB}><span>⚠️ TRADES DONDE ANOTASTE ERRORES</span></div><div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 30, color: C.gold }}>{withMistakes.length}</div><div style={{ fontSize: 10, color: C.dim }}>tu honestidad contigo mismo, medida</div></div>
+      <div style={AG_CARD}><div style={AG_LAB}><span>🗒️ TRADES WITH NOTES</span></div><div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 30, color: C.text }}>{docs.length}</div><div style={{ fontSize: 10, color: C.dim }}>your raw material</div></div>
+      <div style={AG_CARD}><div style={AG_LAB}><span>⚠️ TRADES WHERE YOU LOGGED MISTAKES</span></div><div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 30, color: C.gold }}>{withMistakes.length}</div><div style={{ fontSize: 10, color: C.dim }}>your self-honesty, measured</div></div>
     </div>
-    <AgRunBtn loading={loading} onClick={run} idle="🕯️ QUE EL CONFESOR LEA TUS PALABRAS" busy="EL CONFESOR LEE TUS NOTAS…" color={C.accent} />
+    <AgRunBtn loading={loading} onClick={run} idle="🕯️ LET THE CONFESSOR READ YOUR WORDS" busy="THE CONFESSOR IS READING YOUR NOTES…" color={C.accent} />
     <AgTrace trace={trace} loading={loading} />
-    {err && <div style={{ marginTop: 12, fontSize: 12, color: C.red }}>No se pudo contactar al Confesor. Intenta de nuevo.</div>}
-    <AgCaso label="🕯️ LA CONFESIÓN" text={caso} color={C.accent} />
+    {err && <div style={{ marginTop: 12, fontSize: 12, color: C.red }}>Couldn't reach the Confessor. Try again.</div>}
+    <AgCaso label="🕯️ THE CONFESSION" text={caso} color={C.accent} />
   </div>);
 }
 
@@ -2216,9 +2216,9 @@ function Detective({ trades, omissions }) {
   const ev = useMemo(() => {
     const closed = trades.filter(t => t.result === "win" || t.result === "loss");
     const dims = {
-      Par: t => t.pair, Sesión: t => t.session, Día: t => t.day, Timeframe: t => t.timeframe, Emoción: t => t.emotion,
-      Convicción: t => (t.conviction == null || t.conviction === "") ? null : (Number(t.conviction) >= 8 ? "conv 8-10" : Number(t.conviction) >= 6 ? "conv 6-7" : Number(t.conviction) >= 4 ? "conv 4-5" : "conv 1-3"),
-      Disciplina: t => !(Array.isArray(t.rules) && t.rules.length) ? null : (t.rules.length === 8 ? "8/8 reglas" : t.rules.length >= 6 ? "6-7/8 reglas" : "≤5/8 reglas"),
+      Pair: t => t.pair, Session: t => t.session, Day: t => t.day, Timeframe: t => t.timeframe, Emotion: t => t.emotion,
+      Conviction: t => (t.conviction == null || t.conviction === "") ? null : (Number(t.conviction) >= 8 ? "conv 8-10" : Number(t.conviction) >= 6 ? "conv 6-7" : Number(t.conviction) >= 4 ? "conv 4-5" : "conv 1-3"),
+      Discipline: t => !(Array.isArray(t.rules) && t.rules.length) ? null : (t.rules.length === 8 ? "8/8 rules" : t.rules.length >= 6 ? "6-7/8 rules" : "≤5/8 rules"),
     };
     const segs = [];
     Object.entries(dims).forEach(([dim, fn]) => {
@@ -2243,19 +2243,19 @@ function Detective({ trades, omissions }) {
     setLoading(false);
   };
   const Row = ({ s, good }) => (<div style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 0", borderBottom: `1px solid ${C.border}` }}><div style={{ flex: 1, fontSize: 11, color: C.text }}><span style={{ color: C.muted }}>{s.dim}:</span> {s.v}</div><div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 18, color: good ? C.green : C.red, width: 46, textAlign: "right" }}>{s.wr}%</div><div style={{ fontSize: 9, color: C.muted, width: 34, textAlign: "right" }}>n={s.n}</div></div>);
-  const sub = `Ve las combinaciones que el ojo no alcanza. ${ev.closedN} trades cerrados, ${ev.qN} segmentos con muestra.`;
-  if (ev.qN < 3) return (<div><AgHead icon="🕵️" title="EL DETECTIVE — CORRELACIONES OCULTAS" sub={sub} color={C.gold} /><div style={{ ...AG_CARD, marginTop: 16, fontSize: 12.5, color: C.dim, lineHeight: 1.7 }}>El Detective necesita volumen para no inventar patrones de humo. Aún no hay suficientes segmentos con al menos 4 trades. Sigue registrando y vuelve — es el más poderoso, pero el que más fácil miente con pocos datos.</div></div>);
+  const sub = `Sees the combinations the eye can't reach. ${ev.closedN} closed trades, ${ev.qN} segments with sample.`;
+  if (ev.qN < 3) return (<div><AgHead icon="🕵️" title="THE DETECTIVE — HIDDEN CORRELATIONS" sub={sub} color={C.gold} /><div style={{ ...AG_CARD, marginTop: 16, fontSize: 12.5, color: C.dim, lineHeight: 1.7 }}>The Detective needs volume so it doesn't invent smoke patterns. There aren't enough segments with at least 4 trades yet. Keep logging and come back — it's the most powerful, but the one that most easily lies with little data.</div></div>);
   return (<div>
-    <AgHead icon="🕵️" title="EL DETECTIVE — CORRELACIONES OCULTAS" sub={sub} color={C.gold} />
+    <AgHead icon="🕵️" title="THE DETECTIVE — HIDDEN CORRELATIONS" sub={sub} color={C.gold} />
     <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, margin: "16px 0 10px" }}>
-      <div style={AG_CARD}><div style={AG_LAB}><span>✅ TU MEJOR TERRENO</span></div>{ev.edges.map((s, i) => <Row key={i} s={s} good />)}</div>
-      <div style={AG_CARD}><div style={AG_LAB}><span>🩸 TUS FUGAS</span></div>{ev.leaks.map((s, i) => <Row key={i} s={s} />)}</div>
+      <div style={AG_CARD}><div style={AG_LAB}><span>✅ YOUR BEST GROUND</span></div>{ev.edges.map((s, i) => <Row key={i} s={s} good />)}</div>
+      <div style={AG_CARD}><div style={AG_LAB}><span>🩸 YOUR LEAKS</span></div>{ev.leaks.map((s, i) => <Row key={i} s={s} />)}</div>
     </div>
-    <div style={{ fontSize: 10, color: C.muted, marginBottom: 10, lineHeight: 1.5 }}>Solo segmentos con n≥4. Un win-rate alto con n pequeño todavía es ruido.</div>
-    <AgRunBtn loading={loading} onClick={run} idle="🕵️ QUE EL DETECTIVE ARME EL MAPA" busy="EL DETECTIVE CRUZA LOS DATOS…" color={C.gold} />
+    <div style={{ fontSize: 10, color: C.muted, marginBottom: 10, lineHeight: 1.5 }}>Only segments with n≥4. A high win-rate on a small n is still noise.</div>
+    <AgRunBtn loading={loading} onClick={run} idle="🕵️ LET THE DETECTIVE MAP IT OUT" busy="THE DETECTIVE IS CROSSING THE DATA…" color={C.gold} />
     <AgTrace trace={trace} loading={loading} />
-    {err && <div style={{ marginTop: 12, fontSize: 12, color: C.red }}>No se pudo contactar al Detective. Intenta de nuevo.</div>}
-    <AgCaso label="🕵️ EL INFORME DEL DETECTIVE" text={caso} color={C.gold} />
+    {err && <div style={{ marginTop: 12, fontSize: 12, color: C.red }}>Couldn't reach the Detective. Try again.</div>}
+    <AgCaso label="🕵️ THE DETECTIVE'S REPORT" text={caso} color={C.gold} />
   </div>);
 }
 
@@ -2288,20 +2288,20 @@ function Abogado({ trades, omissions }) {
     } catch { setErr(true); }
     setLoading(false);
   };
-  const sub = `Reta lo que crees de ti mismo y te caza las falacias. ${ev.closedN} trades en la mesa.`;
-  if (ev.closedN < 8) return (<div><AgHead icon="😈" title="EL ABOGADO DEL DIABLO — CREENCIAS Y FALACIAS" sub={sub} color={C.red} /><div style={{ ...AG_CARD, marginTop: 16, fontSize: 12.5, color: C.dim, lineHeight: 1.7 }}>Necesita al menos <b style={{ color: C.text }}>8 trades cerrados</b> para retar tus creencias con base. Llevas <b style={{ color: C.text }}>{ev.closedN}</b>. Para sacarle jugo, marca también convicción (1-10) y riesgo en cada trade.</div></div>);
+  const sub = `Challenges what you believe about yourself and hunts your fallacies. ${ev.closedN} trades on the table.`;
+  if (ev.closedN < 8) return (<div><AgHead icon="😈" title="DEVIL'S ADVOCATE — BELIEFS & FALLACIES" sub={sub} color={C.red} /><div style={{ ...AG_CARD, marginTop: 16, fontSize: 12.5, color: C.dim, lineHeight: 1.7 }}>Needs at least <b style={{ color: C.text }}>8 closed trades</b> to challenge your beliefs with a base. You have <b style={{ color: C.text }}>{ev.closedN}</b>. To get the most out of it, also log conviction (1-10) and risk on each trade.</div></div>);
   const St = ({ lab, val, color, note }) => (<div style={AG_CARD}><div style={AG_LAB}><span>{lab}</span></div><div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 24, color: color || C.text }}>{val}</div>{note && <div style={{ fontSize: 10, color: C.dim, marginTop: 3 }}>{note}</div>}</div>);
   return (<div>
-    <AgHead icon="😈" title="EL ABOGADO DEL DIABLO — CREENCIAS Y FALACIAS" sub={sub} color={C.red} />
+    <AgHead icon="😈" title="DEVIL'S ADVOCATE — BELIEFS & FALLACIES" sub={sub} color={C.red} />
     <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, margin: "16px 0 12px" }}>
-      <St lab="GANANCIA vs PÉRDIDA" val={ev.rr == null ? "—" : ev.rr + "R"} color={ev.rr != null && ev.rr < 1 ? C.red : C.green} note={ev.avgWin != null ? `+${ev.avgWin} gana · -${ev.avgLoss} pierde` : "faltan datos de pnl"} />
-      <St lab="WR CONVICCIÓN ALTA (8-10)" val={ev.hiWR == null ? "—" : ev.hiWR + "%"} color={ev.hiWR == null ? C.muted : ev.hiWR >= 75 ? C.green : C.red} note={ev.hiN ? `${ev.hiN} trades · esperado ~90%` : "marca convicción"} />
-      <St lab="TAMAÑO TRAS PÉRDIDA / GANANCIA" val={ev.sizeAfterLoss == null || ev.sizeAfterWin == null ? "—" : `${ev.sizeAfterLoss} / ${ev.sizeAfterWin}`} color={ev.sizeAfterLoss != null && ev.sizeAfterWin != null && ev.sizeAfterLoss > ev.sizeAfterWin ? C.red : C.text} note={ev.afterLossN ? `${ev.afterLossN} tras pérdida · ${ev.afterWinN} tras ganancia` : "faltan datos"} />
+      <St lab="AVG WIN vs LOSS" val={ev.rr == null ? "—" : ev.rr + "R"} color={ev.rr != null && ev.rr < 1 ? C.red : C.green} note={ev.avgWin != null ? `+${ev.avgWin} win · -${ev.avgLoss} loss` : "missing pnl data"} />
+      <St lab="WR HIGH CONVICTION (8-10)" val={ev.hiWR == null ? "—" : ev.hiWR + "%"} color={ev.hiWR == null ? C.muted : ev.hiWR >= 75 ? C.green : C.red} note={ev.hiN ? `${ev.hiN} trades · expected ~90%` : "log conviction"} />
+      <St lab="SIZE AFTER LOSS / WIN" val={ev.sizeAfterLoss == null || ev.sizeAfterWin == null ? "—" : `${ev.sizeAfterLoss} / ${ev.sizeAfterWin}`} color={ev.sizeAfterLoss != null && ev.sizeAfterWin != null && ev.sizeAfterLoss > ev.sizeAfterWin ? C.red : C.text} note={ev.afterLossN ? `${ev.afterLossN} after loss · ${ev.afterWinN} after win` : "missing data"} />
     </div>
-    <AgRunBtn loading={loading} onClick={run} idle="😈 QUE EL ABOGADO RETE TUS CREENCIAS" busy="EL ABOGADO PREPARA SU ALEGATO…" color={C.red} />
+    <AgRunBtn loading={loading} onClick={run} idle="😈 LET THE ADVOCATE CHALLENGE YOU" busy="THE ADVOCATE IS PREPARING ITS ARGUMENT…" color={C.red} />
     <AgTrace trace={trace} loading={loading} />
-    {err && <div style={{ marginTop: 12, fontSize: 12, color: C.red }}>No se pudo contactar al Abogado. Intenta de nuevo.</div>}
-    <AgCaso label="😈 EL ALEGATO" text={caso} color={C.red} />
+    {err && <div style={{ marginTop: 12, fontSize: 12, color: C.red }}>Couldn't reach the Advocate. Try again.</div>}
+    <AgCaso label="😈 THE ARGUMENT" text={caso} color={C.red} />
   </div>);
 }
 
@@ -2330,32 +2330,32 @@ function Cazador({ omissions, backtests, trades }) {
     } catch { setErr(true); }
     setLoading(false);
   };
-  const sub = `Convierte tu disciplina defensiva en ofensiva: qué buenos setups dejas pasar. ${ev.n} omisiones.`;
-  if (ev.n < 4) return (<div><AgHead icon="🎯" title="EL CAZADOR — OPORTUNIDAD PERDIDA" sub={sub} color={C.accent} /><div style={{ ...AG_CARD, marginTop: 16, fontSize: 12.5, color: C.dim, lineHeight: 1.7 }}>El Cazador se alimenta de tu <b style={{ color: C.text }}>libro de omisiones</b>. Llevas <b style={{ color: C.text }}>{ev.n}</b>. Registra los setups válidos que veas pero no tomes (pestaña Omissions) y te dirá cuánto te cuesta la duda.</div></div>);
+  const sub = `Turns your defensive discipline into offense: which good setups you let slip. ${ev.n} omissions.`;
+  if (ev.n < 4) return (<div><AgHead icon="🎯" title="THE HUNTER — MISSED OPPORTUNITY" sub={sub} color={C.accent} /><div style={{ ...AG_CARD, marginTop: 16, fontSize: 12.5, color: C.dim, lineHeight: 1.7 }}>The Hunter feeds on your <b style={{ color: C.text }}>omissions log</b>. You have <b style={{ color: C.text }}>{ev.n}</b>. Log the valid setups you see but don't take (Omissions tab) and it'll tell you how much your hesitation costs.</div></div>);
   const St = ({ lab, val, color, note }) => (<div style={AG_CARD}><div style={AG_LAB}><span>{lab}</span></div><div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 24, color: color || C.text }}>{val}</div>{note && <div style={{ fontSize: 10, color: C.dim, marginTop: 3 }}>{note}</div>}</div>);
   return (<div>
-    <AgHead icon="🎯" title="EL CAZADOR — OPORTUNIDAD PERDIDA" sub={sub} color={C.accent} />
+    <AgHead icon="🎯" title="THE HUNTER — MISSED OPPORTUNITY" sub={sub} color={C.accent} />
     <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, margin: "16px 0 12px" }}>
-      <St lab="HARVEST RATE" val={ev.harvest == null ? "—" : ev.harvest + "%"} color={ev.harvest != null && ev.harvest >= 60 ? C.green : C.gold} note={`tomaste ${ev.taken} de ${ev.taken + ev.n} que viste`} />
-      <St lab="GANADORES QUE DEJASTE IR" val={ev.wouldWin} color={C.red} note={`vs ${ev.wouldLoss} que habrían perdido`} />
-      <St lab="DINERO EN LA MESA" val={fmt(ev.leftTable)} color={C.gold} note="omisiones que habrían ganado" />
+      <St lab="HARVEST RATE" val={ev.harvest == null ? "—" : ev.harvest + "%"} color={ev.harvest != null && ev.harvest >= 60 ? C.green : C.gold} note={`you took ${ev.taken} of ${ev.taken + ev.n} you saw`} />
+      <St lab="WINNERS YOU LET GO" val={ev.wouldWin} color={C.red} note={`vs ${ev.wouldLoss} that would've lost`} />
+      <St lab="MONEY ON THE TABLE" val={fmt(ev.leftTable)} color={C.gold} note="omissions that would've won" />
     </div>
-    {ev.topReason && <div style={{ fontSize: 11, color: C.dim, marginBottom: 10 }}>Razón más común para no entrar: <b style={{ color: C.text }}>{ev.topReason[0]}</b> ({ev.topReason[1]} veces)</div>}
-    <AgRunBtn loading={loading} onClick={run} idle="🎯 QUE EL CAZADOR RASTREE TUS OMISIONES" busy="EL CAZADOR SIGUE EL RASTRO…" color={C.accent} />
+    {ev.topReason && <div style={{ fontSize: 11, color: C.dim, marginBottom: 10 }}>Most common reason not to enter: <b style={{ color: C.text }}>{ev.topReason[0]}</b> ({ev.topReason[1]} times)</div>}
+    <AgRunBtn loading={loading} onClick={run} idle="🎯 LET THE HUNTER TRACK YOUR OMISSIONS" busy="THE HUNTER IS ON THE TRAIL…" color={C.accent} />
     <AgTrace trace={trace} loading={loading} />
-    {err && <div style={{ marginTop: 12, fontSize: 12, color: C.red }}>No se pudo contactar al Cazador. Intenta de nuevo.</div>}
-    <AgCaso label="🎯 EL RASTRO" text={caso} color={C.accent} />
+    {err && <div style={{ marginTop: 12, fontSize: 12, color: C.red }}>Couldn't reach the Hunter. Try again.</div>}
+    <AgCaso label="🎯 THE TRAIL" text={caso} color={C.accent} />
   </div>);
 }
 
 function Agentes({ trades, backtests, omissions }) {
   const [sub, setSub] = useState("fiscal");
   const list = [
-    { id: "fiscal", icon: "⚖️", name: "El Fiscal", tag: "Disciplina", c: C.gold },
-    { id: "confesor", icon: "🕯️", name: "El Confesor", tag: "Tu lenguaje", c: C.accent },
-    { id: "detective", icon: "🕵️", name: "El Detective", tag: "Correlaciones", c: C.gold },
-    { id: "abogado", icon: "😈", name: "Abogado del Diablo", tag: "Falacias", c: C.red },
-    { id: "cazador", icon: "🎯", name: "El Cazador", tag: "Oportunidad", c: C.accent },
+    { id: "fiscal", icon: "⚖️", name: "The Prosecutor", tag: "Discipline", c: C.gold },
+    { id: "confesor", icon: "🕯️", name: "The Confessor", tag: "Your Language", c: C.accent },
+    { id: "detective", icon: "🕵️", name: "The Detective", tag: "Correlations", c: C.gold },
+    { id: "abogado", icon: "😈", name: "Devil's Advocate", tag: "Fallacies", c: C.red },
+    { id: "cazador", icon: "🎯", name: "The Hunter", tag: "Opportunity", c: C.accent },
   ];
   return (
     <div>
@@ -2440,20 +2440,20 @@ function Fiscal({ trades, omissions }) {
   };
 
   const Pill = ({ n }) => {
-    const s = n >= 20 ? { t: "SÓLIDO", c: C.green } : n >= 8 ? { t: "INDICATIVO", c: C.gold } : { t: "MUESTRA BAJA", c: C.red };
+    const s = n >= 20 ? { t: "SOLID", c: C.green } : n >= 8 ? { t: "INDICATIVE", c: C.gold } : { t: "LOW SAMPLE", c: C.red };
     return <span style={{ fontSize: 8, letterSpacing: 1, color: s.c, border: `1px solid ${s.c}55`, borderRadius: 20, padding: "2px 7px", whiteSpace: "nowrap" }}>{s.t} · n={n}</span>;
   };
   const Head = (
     <div style={{ background: `${C.gold}0a`, border: `1px solid ${C.gold}33`, borderRadius: 10, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14 }}>
       <div style={{ fontSize: 28 }}>⚖️</div>
-      <div><div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 18, letterSpacing: 2, color: C.gold }}>EL FISCAL — TU DISCIPLINA EN JUICIO</div><div style={{ fontSize: 11, color: C.dim, marginTop: 2 }}>Construye el caso en tu contra usando solo tus números — sin adular, sin inventar. {ev.nRec} trades con reglas en evidencia.</div></div>
+      <div><div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 18, letterSpacing: 2, color: C.gold }}>THE PROSECUTOR — DISCIPLINE ON TRIAL</div><div style={{ fontSize: 11, color: C.dim, marginTop: 2 }}>Builds the case against you using only your numbers — no flattery, no invention. {ev.nRec} trades with rules in evidence.</div></div>
     </div>
   );
 
   if (ev.nRec < 5) return (
     <div>{Head}
       <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 22, marginTop: 16, fontSize: 12.5, color: C.dim, lineHeight: 1.7 }}>
-        El Fiscal necesita al menos <b style={{ color: C.text }}>5 trades cerrados con sus 8 reglas marcadas</b> para armar un caso honesto. Llevas <b style={{ color: C.text }}>{ev.nRec}</b>. Marca las reglas R1–R8 en tus trades y vuelve. Sin evidencia no hay juicio — así no te acuso de patrones que en realidad son azar.
+        The Prosecutor needs at least <b style={{ color: C.text }}>5 closed trades with their 8 rules marked</b> to build an honest case. You have <b style={{ color: C.text }}>{ev.nRec}</b>. Mark rules R1–R8 on your trades and come back. No evidence, no trial — that way it won't accuse you of patterns that are really just chance.
       </div>
     </div>
   );
@@ -2468,57 +2468,57 @@ function Fiscal({ trades, omissions }) {
       <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 16, marginBottom: 12 }}>
         {/* regla más costosa */}
         <div style={cardS}>
-          <div style={labS}><span>⚠️ REGLA MÁS COSTOSA</span>{wRule && <Pill n={wRule.brokenN} />}</div>
-          {!wRule ? <div style={{ fontSize: 12, color: C.dim, lineHeight: 1.6 }}>Ninguna regla rota lo suficiente para acusarte todavía — o eres disciplinado, o falta muestra.</div>
+          <div style={labS}><span>⚠️ COSTLIEST RULE</span>{wRule && <Pill n={wRule.brokenN} />}</div>
+          {!wRule ? <div style={{ fontSize: 12, color: C.dim, lineHeight: 1.6 }}>No rule broken enough to accuse you yet — either you're disciplined, or the sample is thin.</div>
             : <>
               <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 8 }}>{wRule.text}</div>
               <div style={{ display: "flex", gap: 16 }}>
-                <div><div style={{ fontSize: 9, color: C.red, letterSpacing: 1, marginBottom: 2 }}>LA ROMPES</div><div style={wS(wRule.bWR)}>{wRule.bWR == null ? "—" : wRule.bWR + "%"}</div></div>
-                <div><div style={{ fontSize: 9, color: C.green, letterSpacing: 1, marginBottom: 2 }}>LA RESPETAS</div><div style={wS(wRule.fWR)}>{wRule.fWR == null ? "—" : wRule.fWR + "%"}</div></div>
-                <div><div style={{ fontSize: 9, color: C.dim, letterSpacing: 1, marginBottom: 2 }}>TE CUESTA</div><div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 26, color: C.gold }}>{wRule.penalty == null ? "—" : "-" + wRule.penalty + "pts"}</div></div>
+                <div><div style={{ fontSize: 9, color: C.red, letterSpacing: 1, marginBottom: 2 }}>YOU BREAK IT</div><div style={wS(wRule.bWR)}>{wRule.bWR == null ? "—" : wRule.bWR + "%"}</div></div>
+                <div><div style={{ fontSize: 9, color: C.green, letterSpacing: 1, marginBottom: 2 }}>YOU FOLLOW IT</div><div style={wS(wRule.fWR)}>{wRule.fWR == null ? "—" : wRule.fWR + "%"}</div></div>
+                <div><div style={{ fontSize: 9, color: C.dim, letterSpacing: 1, marginBottom: 2 }}>COSTS YOU</div><div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 26, color: C.gold }}>{wRule.penalty == null ? "—" : "-" + wRule.penalty + "pts"}</div></div>
               </div>
             </>}
         </div>
         {/* suerte o indisciplina */}
         <div style={cardS}>
-          <div style={labS}><span>🎯 ¿SUERTE O INDISCIPLINA?</span><Pill n={disc.perfectN + disc.impN} /></div>
+          <div style={labS}><span>🎯 LUCK OR INDISCIPLINE?</span><Pill n={disc.perfectN + disc.impN} /></div>
           <div style={{ display: "flex", gap: 16 }}>
-            <div><div style={{ fontSize: 9, color: C.green, letterSpacing: 1, marginBottom: 2 }}>8/8 REGLAS</div><div style={wS(disc.perfectWR)}>{disc.perfectWR == null ? "—" : disc.perfectWR + "%"}</div><div style={{ fontSize: 9, color: C.dim }}>{disc.perfectN} trades</div></div>
-            <div><div style={{ fontSize: 9, color: C.red, letterSpacing: 1, marginBottom: 2 }}>MENOS DE 8/8</div><div style={wS(disc.impWR)}>{disc.impWR == null ? "—" : disc.impWR + "%"}</div><div style={{ fontSize: 9, color: C.dim }}>{disc.impN} trades</div></div>
+            <div><div style={{ fontSize: 9, color: C.green, letterSpacing: 1, marginBottom: 2 }}>8/8 RULES</div><div style={wS(disc.perfectWR)}>{disc.perfectWR == null ? "—" : disc.perfectWR + "%"}</div><div style={{ fontSize: 9, color: C.dim }}>{disc.perfectN} trades</div></div>
+            <div><div style={{ fontSize: 9, color: C.red, letterSpacing: 1, marginBottom: 2 }}>UNDER 8/8</div><div style={wS(disc.impWR)}>{disc.impWR == null ? "—" : disc.impWR + "%"}</div><div style={{ fontSize: 9, color: C.dim }}>{disc.impN} trades</div></div>
           </div>
-          <div style={{ fontSize: 10, color: C.muted, marginTop: 10, lineHeight: 1.5 }}>Si 8/8 gana mucho más, tus pérdidas son indisciplina, no mala suerte.</div>
+          <div style={{ fontSize: 10, color: C.muted, marginTop: 10, lineHeight: 1.5 }}>If 8/8 wins far more, your losses are indiscipline, not bad luck.</div>
         </div>
         {/* cascada de tilt */}
         <div style={cardS}>
-          <div style={labS}><span>🩸 CASCADA DE TILT</span>{tilt.post2LN > 0 && <Pill n={tilt.post2LN} />}</div>
-          {tilt.post2LN === 0 ? <div style={{ fontSize: 12, color: C.dim, lineHeight: 1.6 }}>Aún no hay rachas de 2 pérdidas seguidas que analizar. Buena señal, o poca muestra.</div>
+          <div style={labS}><span>🩸 TILT CASCADE</span>{tilt.post2LN > 0 && <Pill n={tilt.post2LN} />}</div>
+          {tilt.post2LN === 0 ? <div style={{ fontSize: 12, color: C.dim, lineHeight: 1.6 }}>No streaks of 2 losses in a row to analyze yet. Good sign, or low sample.</div>
             : <>
               <div style={{ display: "flex", gap: 16 }}>
-                <div><div style={{ fontSize: 9, color: C.dim, letterSpacing: 1, marginBottom: 2 }}>% PÉRDIDA BASE</div><div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 26, color: C.text }}>{tilt.baseLoss == null ? "—" : tilt.baseLoss + "%"}</div></div>
-                <div><div style={{ fontSize: 9, color: C.red, letterSpacing: 1, marginBottom: 2 }}>TRAS 2 PÉRDIDAS</div><div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 26, color: (tilt.post2Lloss != null && tilt.baseLoss != null && tilt.post2Lloss > tilt.baseLoss) ? C.red : C.text }}>{tilt.post2Lloss == null ? "—" : tilt.post2Lloss + "%"}</div></div>
+                <div><div style={{ fontSize: 9, color: C.dim, letterSpacing: 1, marginBottom: 2 }}>BASE LOSS %</div><div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 26, color: C.text }}>{tilt.baseLoss == null ? "—" : tilt.baseLoss + "%"}</div></div>
+                <div><div style={{ fontSize: 9, color: C.red, letterSpacing: 1, marginBottom: 2 }}>AFTER 2 LOSSES</div><div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 26, color: (tilt.post2Lloss != null && tilt.baseLoss != null && tilt.post2Lloss > tilt.baseLoss) ? C.red : C.text }}>{tilt.post2Lloss == null ? "—" : tilt.post2Lloss + "%"}</div></div>
               </div>
-              {tilt.avgRulesPost != null && <div style={{ fontSize: 10, color: C.muted, marginTop: 10, lineHeight: 1.5 }}>Disciplina promedio: {tilt.avgRules}/8 · tras 2 pérdidas: <span style={{ color: tilt.avgRulesPost < tilt.avgRules ? C.red : C.text }}>{tilt.avgRulesPost}/8</span></div>}
+              {tilt.avgRulesPost != null && <div style={{ fontSize: 10, color: C.muted, marginTop: 10, lineHeight: 1.5 }}>Avg discipline: {tilt.avgRules}/8 · after 2 losses: <span style={{ color: tilt.avgRulesPost < tilt.avgRules ? C.red : C.text }}>{tilt.avgRulesPost}/8</span></div>}
             </>}
         </div>
         {/* emoción más cara */}
         <div style={cardS}>
-          <div style={labS}><span>🧠 EMOCIÓN MÁS CARA</span>{worstEmo && <Pill n={worstEmo.n} />}</div>
-          {!worstEmo ? <div style={{ fontSize: 12, color: C.dim, lineHeight: 1.6 }}>Marca la emoción en tus trades para descubrir cuál te sale más cara.</div>
-            : <><div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 28, color: C.text }}>{worstEmo.e}</div><div style={{ fontSize: 12, color: worstEmo.wr < 50 ? C.red : C.green, marginTop: 2 }}>{worstEmo.wr}% win rate cuando operas así</div></>}
+          <div style={labS}><span>🧠 COSTLIEST EMOTION</span>{worstEmo && <Pill n={worstEmo.n} />}</div>
+          {!worstEmo ? <div style={{ fontSize: 12, color: C.dim, lineHeight: 1.6 }}>Log the emotion on your trades to find which one costs you most.</div>
+            : <><div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 28, color: C.text }}>{worstEmo.e}</div><div style={{ fontSize: 12, color: worstEmo.wr < 50 ? C.red : C.green, marginTop: 2 }}>{worstEmo.wr}% win rate when you trade like this</div></>}
         </div>
       </div>
 
       <button onClick={run} disabled={loading} style={{ width: "100%", padding: "13px", background: loading ? C.panel2 : C.gold, color: loading ? C.gold : "#000", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 700, letterSpacing: 2, cursor: loading ? "wait" : "pointer", fontFamily: "Inter, sans-serif" }}>
-        {loading ? "EL FISCAL REVISA EL EXPEDIENTE…" : "⚖️ QUE EL FISCAL PRESENTE SU CASO"}
+        {loading ? "THE PROSECUTOR IS REVIEWING THE FILE…" : "⚖️ LET THE PROSECUTOR MAKE THE CASE"}
       </button>
 
       <AgTrace trace={trace} loading={loading} />
-      {err && <div style={{ marginTop: 12, fontSize: 12, color: C.red }}>No se pudo contactar al Fiscal. Intenta de nuevo.</div>}
+      {err && <div style={{ marginTop: 12, fontSize: 12, color: C.red }}>Couldn't reach the Prosecutor. Try again.</div>}
       {caso && (
         <div style={{ marginTop: 14, background: C.panel, border: `1px solid ${C.gold}44`, borderLeft: `3px solid ${C.gold}`, borderRadius: 10, padding: "18px 20px" }}>
-          <div style={{ fontSize: 9, color: C.gold, letterSpacing: 3, marginBottom: 12 }}>⚖️ EL CASO DEL FISCAL</div>
+          <div style={{ fontSize: 9, color: C.gold, letterSpacing: 3, marginBottom: 12 }}>⚖️ THE PROSECUTOR'S CASE</div>
           <div style={{ fontSize: 13.5, color: C.text, lineHeight: 1.75, whiteSpace: "pre-wrap" }}>{caso}</div>
-          <div style={{ fontSize: 10, color: C.muted, marginTop: 14, lineHeight: 1.5 }}>El Fiscal solo argumenta los números de arriba — no inventa cifras. Tú tienes la última palabra.</div>
+          <div style={{ fontSize: 10, color: C.muted, marginTop: 14, lineHeight: 1.5 }}>The Prosecutor only argues the numbers above — it makes up no figures. You have the final word.</div>
         </div>
       )}
     </div>
@@ -2878,7 +2878,7 @@ function BacktestLog({ backtests, trades, patterns, patName, pairs, onView }) {
     setAsking(true); setAns(null);
     try {
       const data = JSON.stringify(backtests.slice(-40).map(b => ({ date: b.date, pair: b.pair, type: b.type, pattern: patName(b.patternId), tf: b.timeframe, session: b.session, result: b.result, pnl: b.pnl, rules: b.rules, why: (b.reason||"").slice(0,160), notes: (b.notes||"").slice(0,160) })));
-      const prompt = "You are an expert forex trading coach. Answer the trader's question about THEIR OWN backtests (setups they studied but did not trade live), directly and specifically in English, plain text only, no markdown, no preamble. Base your answer ONLY on the backtest data provided; if insufficient, say so. Under 6 sentences unless truly needed. BACKTESTS: " + data + " QUESTION: " + qq;
+      const prompt = "You are an expert forex trading coach. Answer the trader's question about THEIR OWN backtests (setups they studied but did not trade live), directly and specifically, REPLYING IN THE SAME LANGUAGE THE TRADER USED IN THEIR QUESTION, plain text only, no markdown, no preamble. Base your answer ONLY on the backtest data provided; if insufficient, say so. Under 6 sentences unless truly needed. BACKTESTS: " + data + " QUESTION: " + qq;
       const res = await fetch("/.netlify/functions/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 700, messages: [{ role: "user", content: prompt }] }) });
       if (!res.ok) throw new Error("s" + res.status);
       const d = await res.json();
