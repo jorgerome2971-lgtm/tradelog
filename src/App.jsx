@@ -993,12 +993,17 @@ function Reflections({ reflections, onSave }) {
   const [aiQ, setAiQ] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
   const [aiRes, setAiRes] = useState(null);
+  const [editId, setEditId] = useState(null);
+  const [eText, setEText] = useState(""); const [eCat, setECat] = useState("Technical"); const [ePair, setEPair] = useState(""); const [eTf, setETf] = useState("");
   const add = () => {
     if (!text.trim()) return;
     onSave([...reflections, { id: uid(), text: text.trim(), category: cat, pair: pair.trim(), timeframe: tf, created_at: new Date().toISOString() }]);
     setText(""); setPair(""); setTf("");
   };
   const del = (id) => { if (confirm("Delete this reflection?")) onSave(reflections.filter(r => r.id !== id)); };
+  const startEdit = (r) => { setEditId(r.id); setEText(r.text || ""); setECat(r.category || "Technical"); setEPair(r.pair || ""); setETf(r.timeframe || ""); };
+  const cancelEdit = () => setEditId(null);
+  const saveEdit = () => { if (!eText.trim()) return; onSave(reflections.map(r => r.id === editId ? { ...r, text: eText.trim(), category: eCat, pair: ePair.trim(), timeframe: eTf } : r)); setEditId(null); };
   const runAsk = async () => {
     const qq = aiQ.trim(); if (!qq || !reflections.length) return;
     setAiBusy(true); setAiRes(null);
@@ -1068,14 +1073,28 @@ function Reflections({ reflections, onSave }) {
         <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search your reflections..." style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 8, fontSize: 12, fontFamily: "Inter, sans-serif", marginBottom: 14 }} />
       )}
       {list.length === 0 ? <Empty text="No reflections yet. Write your first one above." />
-        : list.map(r => (
+        : list.map(r => editId === r.id ? (
+          <div key={r.id} style={{ background: C.panel, border: `1px solid ${C.accent}66`, borderLeft: `3px solid ${catColor(eCat)}`, borderRadius: 10, padding: "14px 15px", marginBottom: 8 }}>
+            <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
+              <Sel label="TYPE" value={eCat} onChange={setECat} options={REFL_CATS} placeholder="" />
+              <div style={{ marginBottom: 13 }}>
+                <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>PAIR (optional)</div>
+                <input value={ePair} onChange={e => setEPair(e.target.value)} placeholder="e.g. GBP/NZD" style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 12, fontFamily: "Inter, sans-serif" }} />
+              </div>
+              <Sel label="TIMEFRAME (optional)" value={eTf} onChange={setETf} options={TIMEFRAMES} />
+            </div>
+            <textarea value={eText} onChange={e => setEText(e.target.value)} rows={4} style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "10px 12px", borderRadius: 6, fontSize: 13, fontFamily: "Inter, sans-serif", resize: "vertical", marginBottom: 10 }} />
+            <div style={{ display: "flex", gap: 8 }}><Btn onClick={saveEdit} disabled={!eText.trim()}>Save changes</Btn><Btn ghost onClick={cancelEdit}>Cancel</Btn></div>
+          </div>
+        ) : (
           <div key={r.id} style={{ background: C.panel, border: `1px solid ${C.border}`, borderLeft: `3px solid ${catColor(r.category)}`, borderRadius: 10, padding: "13px 15px", marginBottom: 8 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7, flexWrap: "wrap" }}>
               <span style={{ fontSize: 9, letterSpacing: 1, color: catColor(r.category), border: `1px solid ${catColor(r.category)}55`, borderRadius: 4, padding: "2px 7px" }}>{(r.category || "NOTE").toUpperCase()}</span>
               {r.pair && <span style={{ fontSize: 10, color: C.dim }}>{r.pair}</span>}
               {r.timeframe && <span style={{ fontSize: 10, color: C.dim }}>· {r.timeframe}</span>}
               <span style={{ fontSize: 10, color: C.muted, marginLeft: "auto" }}>{(r.created_at || "").slice(0, 10)}</span>
-              <button onClick={() => del(r.id)} style={{ background: "transparent", border: "none", color: C.muted, cursor: "pointer", fontSize: 14 }}>✕</button>
+              <button onClick={() => startEdit(r)} title="Edit" style={{ background: "transparent", border: "none", color: C.accent, cursor: "pointer", fontSize: 13 }}>✎</button>
+              <button onClick={() => del(r.id)} title="Delete" style={{ background: "transparent", border: "none", color: C.muted, cursor: "pointer", fontSize: 14 }}>✕</button>
             </div>
             <div style={{ fontSize: 13, color: C.text, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{r.text}</div>
           </div>
