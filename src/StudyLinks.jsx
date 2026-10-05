@@ -5,7 +5,9 @@ import { useState, useEffect } from "react";
    Separate, self-contained file. Created in GitHub as
    src/StudyLinks.jsx (empty box, does not mix with App.jsx).
    Save links: YouTube motivation, podcasts, strategies,
-   your own TradingView screen recordings, etc. By category.
+   your own TradingView screen recordings, OR upload a file
+   from your computer (pdf, image, doc...). By category.
+   Files are stored in the existing "pattern-library" bucket.
    ============================================================ */
 
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
@@ -113,6 +115,8 @@ function TA({ label, value, onChange, placeholder, rows }) {
 }
 
 const isYouTube = (url) => /youtube\.com|youtu\.be/i.test(url || "");
+const isFile = (url) => /\/storage\/v1\/object\/public\//.test(url || "");
+const fileNameFromUrl = (url) => { try { return decodeURIComponent((url || "").split("/").pop() || "").replace(/^\d+_/, "") || "file"; } catch { return "file"; } };
 const catColor = (c) => ({ Motivation: C.gold, Study: C.accent, Strategy: C.green, "My Recordings": C.red, Podcast: "#b98cff", Other: C.dim }[c] || C.dim);
 
 export default function StudyLinks({ supaUrl, supaKey }) {
@@ -120,6 +124,7 @@ export default function StudyLinks({ supaUrl, supaKey }) {
   const [loading, setLoading] = useState(true);
   const [fCat, setFCat] = useState("");
   const [modal, setModal] = useState(false);
+  const [editing, setEditing] = useState(null);
 
   const H = { apikey: supaKey, Authorization: `Bearer ${supaKey}`, "Content-Type": "application/json" };
 
@@ -139,6 +144,7 @@ export default function StudyLinks({ supaUrl, supaKey }) {
     load();
   };
 
+  const closeModal = () => { setModal(false); setEditing(null); };
   const links = all.filter(l => !fCat || l.category === fCat);
 
   return (
@@ -154,24 +160,26 @@ export default function StudyLinks({ supaUrl, supaKey }) {
           </div>
         </div>
         <div style={{ marginBottom: 13, marginLeft: "auto" }}>
-          <Btn onClick={() => setModal(true)}>+ Add link</Btn>
+          <Btn onClick={() => { setEditing(null); setModal(true); }}>+ Add link / file</Btn>
         </div>
       </div>
 
       {loading ? <Empty text="Loading links..." />
-        : !links.length ? <Empty text="No links yet. Add your first study link." />
+        : !links.length ? <Empty text="No links yet. Add your first study link or file." />
         : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 12 }}>
             {links.map(l => (
               <div key={l.id} style={{ background: C.panel, border: `1px solid ${C.border}`, borderLeft: `3px solid ${catColor(l.category)}`, borderRadius: 10, padding: "14px 16px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
                   <Tag color={catColor(l.category)}>{l.category || "Other"}</Tag>
-                  {isYouTube(l.url) && <Tag color={C.red}>YouTube</Tag>}
+                  {isFile(l.url) ? <Tag color={C.accent}>📎 File</Tag> : isYouTube(l.url) && <Tag color={C.red}>YouTube</Tag>}
                 </div>
                 <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 6, lineHeight: 1.4 }}>{l.title || "(untitled)"}</div>
+                {isFile(l.url) && <div style={{ fontSize: 10, color: C.muted, marginBottom: 6, wordBreak: "break-all" }}>{fileNameFromUrl(l.url)}</div>}
                 {l.notes && <div style={{ fontSize: 11, color: C.dim, lineHeight: 1.6, marginBottom: 10 }}>{l.notes}</div>}
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  {l.url && <a href={l.url} target="_blank" rel="noreferrer" style={{ flex: 1, textAlign: "center", fontSize: 11, padding: "7px 10px", background: `${C.accent}10`, border: `1px solid ${C.accent}33`, color: C.accent, borderRadius: 4, textDecoration: "none" }}>Open link</a>}
+                <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                  {l.url && <a href={l.url} target="_blank" rel="noreferrer" style={{ flex: 1, minWidth: 90, textAlign: "center", fontSize: 11, padding: "7px 10px", background: `${C.accent}10`, border: `1px solid ${C.accent}33`, color: C.accent, borderRadius: 4, textDecoration: "none" }}>{isFile(l.url) ? "Open file" : "Open link"}</a>}
+                  <button onClick={() => { setEditing(l); setModal(true); }} style={{ fontSize: 11, padding: "7px 10px", background: "transparent", border: `1px solid ${C.accent}44`, color: C.accent, borderRadius: 4, cursor: "pointer" }}>Edit</button>
                   <button onClick={() => { if (confirm("Delete this link?")) del(l.id); }} style={{ fontSize: 11, padding: "7px 10px", background: "transparent", border: `1px solid ${C.red}44`, color: C.red, borderRadius: 4, cursor: "pointer" }}>Delete</button>
                 </div>
               </div>
@@ -179,43 +187,69 @@ export default function StudyLinks({ supaUrl, supaKey }) {
           </div>
         )}
 
-      {modal && <LinkModal supaUrl={supaUrl} supaKey={supaKey} onClose={() => setModal(false)} onDone={() => { setModal(false); load(); }} />}
+      {(modal || editing) && <LinkModal supaUrl={supaUrl} supaKey={supaKey} entry={editing} onClose={closeModal} onDone={() => { closeModal(); load(); }} />}
     </div>
   );
 }
 
-function LinkModal({ supaUrl, supaKey, onClose, onDone }) {
-  const [category, setCategory] = useState("Motivation");
-  const [title, setTitle] = useState("");
-  const [url, setUrl] = useState("");
-  const [notes, setNotes] = useState("");
+function LinkModal({ supaUrl, supaKey, entry, onClose, onDone }) {
+  const isEdit = !!entry;
+  const hadFile = isEdit && isFile(entry.url);
+  const [category, setCategory] = useState(entry?.category || "Motivation");
+  const [title, setTitle] = useState(entry?.title || "");
+  const [url, setUrl] = useState(hadFile ? "" : (entry?.url || ""));
+  const [notes, setNotes] = useState(entry?.notes || "");
+  const [file, setFile] = useState(null);
   const [saving, setSaving] = useState(false);
 
+  const H = { apikey: supaKey, Authorization: `Bearer ${supaKey}`, "Content-Type": "application/json" };
+
   const save = async () => {
-    if (!url.trim()) return alert("Paste a link (URL) before saving.");
-    if (!title.trim()) return alert("Give the link a title.");
+    if (!title.trim()) return alert("Give it a title.");
+    if (!url.trim() && !file && !hadFile) return alert("Paste a link (URL) or attach a file.");
     setSaving(true);
     try {
-      const row = { id: uid(), category, title, url, notes: notes || null };
-      const r = await fetch(`${supaUrl}/rest/v1/study_links`, {
-        method: "POST",
-        headers: { apikey: supaKey, Authorization: `Bearer ${supaKey}`, "Content-Type": "application/json", Prefer: "return=representation" },
-        body: JSON.stringify(row),
-      });
-      if (!r.ok) throw new Error(await r.text());
+      let finalUrl = url.trim();
+      if (file) {
+        const path = `study/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, "")}`;
+        const up = await fetch(`${supaUrl}/storage/v1/object/pattern-library/${path}`, {
+          method: "POST",
+          headers: { apikey: supaKey, Authorization: `Bearer ${supaKey}`, "Content-Type": file.type || "application/octet-stream" },
+          body: file,
+        });
+        if (!up.ok) throw new Error("the file could not be uploaded (check the storage bucket allows this file type)");
+        finalUrl = `${supaUrl}/storage/v1/object/public/pattern-library/${path}`;
+      } else if (!finalUrl && hadFile) {
+        finalUrl = entry.url;
+      }
+      const row = { category, title: title.trim(), url: finalUrl, notes: notes.trim() || null };
+      if (isEdit) {
+        const r = await fetch(`${supaUrl}/rest/v1/study_links?id=eq.${entry.id}`, { method: "PATCH", headers: { ...H, Prefer: "return=representation" }, body: JSON.stringify(row) });
+        if (!r.ok) throw new Error(await r.text());
+      } else {
+        const r = await fetch(`${supaUrl}/rest/v1/study_links`, { method: "POST", headers: { ...H, Prefer: "return=representation" }, body: JSON.stringify({ id: uid(), ...row }) });
+        if (!r.ok) throw new Error(await r.text());
+      }
       onDone();
     } catch (e) { alert("Could not save: " + (e.message || e)); }
     setSaving(false);
   };
 
   return (
-    <Modal title="ADD STUDY LINK" onClose={onClose}>
+    <Modal title={isEdit ? "EDIT STUDY LINK" : "ADD STUDY LINK / FILE"} onClose={onClose}>
       <Sel label="CATEGORY" value={category} onChange={setCategory} options={LINK_CATEGORIES} placeholder="" />
       <Inp label="TITLE" value={title} onChange={setTitle} placeholder="e.g. Mindset talk - staying patient" />
-      <Inp label="LINK (URL)" value={url} onChange={setUrl} placeholder="https://youtube.com/... or https://..." />
+      <Inp label="LINK (URL) — web page or video" value={url} onChange={setUrl} placeholder="https://youtube.com/... or https://..." />
+      <div style={{ marginBottom: 13 }}>
+        <div style={{ fontSize: 9, color: C.dim, letterSpacing: 2, marginBottom: 5 }}>OR ATTACH A FILE FROM YOUR COMPUTER (pdf, image, doc…){hadFile ? " — leave empty to keep current file" : ""}</div>
+        <input type="file" onChange={e => setFile(e.target.files && e.target.files[0] ? e.target.files[0] : null)}
+          style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "8px 10px", borderRadius: 6, fontSize: 12, fontFamily: "Inter, sans-serif" }} />
+        {file && <div style={{ fontSize: 10, color: C.accent, marginTop: 5 }}>Selected: {file.name}</div>}
+        {hadFile && !file && <div style={{ fontSize: 10, color: C.dim, marginTop: 5 }}>Current file: {fileNameFromUrl(entry.url)}</div>}
+      </div>
       <TA label="NOTES (optional)" value={notes} onChange={setNotes} placeholder="Why this is worth revisiting..." rows={2} />
       <div style={{ display: "flex", gap: 10 }}>
-        <Btn onClick={save} disabled={saving} full>{saving ? "Saving..." : "Save link"}</Btn>
+        <Btn onClick={save} disabled={saving} full>{saving ? "Saving..." : (isEdit ? "Save changes" : "Save")}</Btn>
       </div>
     </Modal>
   );
