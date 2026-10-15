@@ -15,9 +15,9 @@ import { useState, useEffect } from "react";
 
 // -- Palette (same as the app) -------------------------------------------------
 const C = {
-  bg: "#0a0a0a", panel: "#141414", panel2: "#1c1c1c", border: "#2a2a2a",
-  accent: "#c6f531", gold: "#f0b429", green: "#c6f531", red: "#f63b3b",
-  muted: "#5a5a5a", text: "#e8e8e8", dim: "#808080",
+  bg: "#0b0f17", panel: "#141a24", panel2: "#1d2430", border: "#2b333f",
+  accent: "#a9c3e0", gold: "#c6cfdb", green: "#a9c3e0", red: "#8793a3",
+  muted: "#566070", text: "#e9eef4", dim: "#8a94a3",
 };
 
 // -- UI helpers (local copies, so this file needs nothing from App.jsx) ---------
