@@ -13,9 +13,9 @@ import { useState, useEffect } from "react";
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
 
 const C = {
-  bg: "#0a0a0a", panel: "#141414", panel2: "#1c1c1c", border: "#2a2a2a",
-  accent: "#c6f531", gold: "#f0b429", green: "#c6f531", red: "#f63b3b",
-  muted: "#5a5a5a", text: "#e8e8e8", dim: "#808080",
+  bg: "#0b0f17", panel: "#141a24", panel2: "#1d2430", border: "#2b333f",
+  accent: "#a9c3e0", gold: "#c6cfdb", green: "#a9c3e0", red: "#8793a3",
+  muted: "#566070", text: "#e9eef4", dim: "#8a94a3",
 };
 
 const LINK_CATEGORIES = ["Motivation", "Study", "Strategy", "My Recordings", "Podcast", "Other"];
@@ -117,7 +117,7 @@ function TA({ label, value, onChange, placeholder, rows }) {
 const isYouTube = (url) => /youtube\.com|youtu\.be/i.test(url || "");
 const isFile = (url) => /\/storage\/v1\/object\/public\//.test(url || "");
 const fileNameFromUrl = (url) => { try { return decodeURIComponent((url || "").split("/").pop() || "").replace(/^\d+_/, "") || "file"; } catch { return "file"; } };
-const catColor = (c) => ({ Motivation: C.gold, Study: C.accent, Strategy: C.green, "My Recordings": C.red, Podcast: "#b98cff", Other: C.dim }[c] || C.dim);
+const catColor = (c) => ({ Motivation: C.gold, Study: C.accent, Strategy: C.green, "My Recordings": C.red, Podcast: "#8aa0bf", Other: C.dim }[c] || C.dim);
 
 export default function StudyLinks({ supaUrl, supaKey }) {
   const [all, setAll] = useState([]);
