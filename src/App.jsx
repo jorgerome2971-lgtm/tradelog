@@ -9,9 +9,9 @@ const fmt = (n) => new Intl.NumberFormat("en-US", { style: "currency", currency:
 const pct = (a, b) => b === 0 ? "—" : ((a / b) * 100).toFixed(1) + "%";
 
 const C = {
-  bg: "#0a0a0a", panel: "#141414", panel2: "#1c1c1c", border: "#2a2a2a",
-  accent: "#c6f531", gold: "#f0b429", green: "#c6f531", red: "#f63b3b",
-  muted: "#5a5a5a", text: "#e8e8e8", dim: "#808080",
+  bg: "#0b0f17", panel: "#141a24", panel2: "#1d2430", border: "#2b333f",
+  accent: "#a9c3e0", gold: "#c6cfdb", green: "#a9c3e0", red: "#8793a3",
+  muted: "#566070", text: "#e9eef4", dim: "#8a94a3",
 };
 
 const PAIRS = ["EUR/USD","GBP/USD","USD/JPY","USD/CHF","AUD/USD","NZD/USD","USD/CAD","EUR/GBP","EUR/JPY","GBP/JPY","XAU/USD","US30","NAS100","SPX500","Other"];
@@ -29,8 +29,8 @@ const css = `
   @keyframes spin { to { transform: rotate(360deg); } }
   @keyframes fadein { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
   .fadein { animation: fadein .2s ease; }
-  ::-webkit-scrollbar { width: 4px; background: #0a0a0a; }
-  ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 4px; }
+  ::-webkit-scrollbar { width: 4px; background: #0b0f17; }
+  ::-webkit-scrollbar-thumb { background: #2b333f; border-radius: 4px; }
   input, select, textarea { outline: none; font-family: 'Inter', sans-serif; }
   body { font-family: 'Inter', sans-serif; }
   .tus-hamburger { display: none; }
@@ -123,7 +123,7 @@ async function shareCardNode(node, title) {
     htmlEl.style.zoom = "1";
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
     const shot = await h2c(node, {
-      backgroundColor: "#0a0a0a",
+      backgroundColor: "#0b0f17",
       scale: 2,
       useCORS: true,
       logging: false,
@@ -137,7 +137,7 @@ async function shareCardNode(node, title) {
     out.width = shot.width + padS * 2;
     out.height = shot.height + padT + gap + footH + padB;
     const ctx = out.getContext("2d");
-    ctx.fillStyle = "#0a0a0a"; ctx.fillRect(0, 0, out.width, out.height);
+    ctx.fillStyle = "#0b0f17"; ctx.fillRect(0, 0, out.width, out.height);
     // watermark
     ctx.save();
     ctx.translate(out.width / 2, out.height / 2);
@@ -153,7 +153,7 @@ async function shareCardNode(node, title) {
     ctx.drawImage(shot, padS, padT);
     // footer — usa el logo real del faro (el mismo <img> de la app)
     const sepY = padT + shot.height + gap;
-    ctx.strokeStyle = "#2a2a2a"; ctx.lineWidth = 1 * s;
+    ctx.strokeStyle = "#2b333f"; ctx.lineWidth = 1 * s;
     ctx.beginPath(); ctx.moveTo(padS, sepY); ctx.lineTo(out.width - padS, sepY); ctx.stroke();
     const ly = sepY + 11 * s;
     let logoImg = null;
@@ -168,16 +168,16 @@ async function shareCardNode(node, title) {
       textX = padS + logoW + 12 * s;
     } else {
       const ls = 30 * s;
-      ctx.fillStyle = "#c6f531"; _rr(ctx, padS, ly, ls, ls, 7 * s); ctx.fill();
-      ctx.fillStyle = "#000"; ctx.font = `${Math.round(22 * s)}px 'Bebas Neue', sans-serif`;
+      ctx.fillStyle = "#a9c3e0"; _rr(ctx, padS, ly, ls, ls, 7 * s); ctx.fill();
+      ctx.fillStyle = "#0b0f17"; ctx.font = `${Math.round(22 * s)}px 'Bebas Neue', sans-serif`;
       ctx.textAlign = "center"; ctx.textBaseline = "middle";
       ctx.fillText("T", padS + ls / 2, ly + ls / 2 + 1 * s);
       textX = padS + ls + 12 * s;
     }
     ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
-    ctx.fillStyle = "#e8e8e8"; ctx.font = `${Math.round(17 * s)}px 'Bebas Neue', sans-serif`;
+    ctx.fillStyle = "#e9eef4"; ctx.font = `${Math.round(17 * s)}px 'Bebas Neue', sans-serif`;
     ctx.fillText("THE UNKNOWN SOFTWARE", textX, ly + 16 * s);
-    ctx.fillStyle = "#5a5a5a"; ctx.font = `${Math.round(10 * s)}px 'Inter', sans-serif`;
+    ctx.fillStyle = "#566070"; ctx.font = `${Math.round(10 * s)}px 'Inter', sans-serif`;
     ctx.fillText("FOREX TRADING JOURNAL", textX, ly + 30 * s);
 
     const dataUrl = out.toDataURL("image/png");
@@ -499,7 +499,7 @@ export default function App() {
       <aside className={"tus-sidebar" + (menuOpen ? " open" : "")} style={{ width: 230, background: C.panel, borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column", flexShrink: 0 }}>
         <div style={{ padding: "22px 20px 18px", borderBottom: `1px solid ${C.border}` }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIoAAAB4CAYAAAAt3Wp2AAACbklEQVR42u3dW1qDQAwG0A7fbMj9v7sjn+MGUCgdLpmc/1GrtXDIJJRi+/75eolsZbEJBBQB5eSETQAKJKAMRRLQgPJOJYEFlN0YAhSJwY8DpSCSBgsosYECFlBWkYQGF5QjlWTrMQEKJGs/UxrLAslbO7wsll4ISjv4vU8eC8rkYzEwRaHEyb+zVYMSjiYHztp+7lc90YP7E5XzAUtPFlCRANqt01VPdCS0wc/Tbvwd6cbrTM1sxv5pmnMsM049cTGgEifcXI8ioIil50lj8ZH3jECZAMInO37r7wlQckBoA77eTnw9Aco9S0PseO53x+448fU8FlJPDqFaboPUQQBpBBQQQFqF0optmCOvuVWE1AsfXfH6+2MaexpaV7hNimJ083fkiv60cQrfdAfKRTuyxBKkoggoopnVk6gol049cKgoKgcocICSCEfpj5TCcX6vAwocoFQDAoelB44jcWZ2zD3vp0fWi8IQUOCw9EACioAiehR5FXlvCBQ4QIEDlKsmHpccqCjDcJS43AAU7yiDcmLlsPTAAUdFKJYVUB41HU0f/852LBK3D520cqgkoMAACiB6FAGlQpzCl3o4QIEDFDhAuWPicT2KijIUx/T3nAVlHA4VBY6aOCpDgQMUOECB4/Y4hT/m/ijTo3N/FAEFDlDgAAUQzayAIqCIJRAUqQlFIwuKgCKgCCgCSpm4eHpnuh0Py+xQohBmS4+AIhNVwsXGFhVFQBFTj5EWFP1I1gNggUSyQ6mIJEARFUU1mf+1qyiSeuox/qoooqLoRaattCqKPB6KapJom6kosDwaimqimTX+6lEEFJH/8gs0hHlIty93UAAAAABJRU5ErkJggg==" alt="The Unknown Software" style={{ width: 62, height: "auto", flexShrink: 0, display: "block" }} />
+            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIoAAAB4CAYAAAAt3Wp2AAADbElEQVR4nO3cS1bbQBBGYTkn28gikp1kpeyCIZtgDRmTAfjQCD1K/XBX1X+/cWJs61Lqlmxuz/9+L8CZH7OfAGIgFJgQyobXl6e32c/BG0JZIZJtNxazn7Yi+fXn723Gc/GGifJhb5IwYd4RynIeA7EQijkC9VikQzk7+Ov1iXIssqGsD/reopVY3kmGshXJVgAscD/JhWKdJGf/Ri0WqVBqIrn/H/VYZEI5isR6wJVj4cosTH7OfgIz9JgCapf2JSbK6NODQjRfJkrLuRpx1BznqlNPtKC8PI/RRk7OoWuUKEFdvZQ/w+zdlYvFrOVN6HGwyp9T+3g9HmPv8TxzEYpFlOlUihKBRZhQrPYOzqiAMsVwRObKLNoQCkzSnXpKj1iv1Nwziih0KCNCaDnwZ88nckhfLuF7eyGedjCP4Pn9nzpRRodw9Mbff/bVbbflMWt5nkhDQ1GbCKPNDKkpFELwZWRIh6EQQi4tIUl8HgXtQm+PW7y+PL3tfU1jT7mgVZu2EqGM+H5OzSf6I+MSfgfZI1kWkVBGHkiFSJZFJBS0IxSYSCxme1M53ZQkJgpf+GrHRDmgHkeJUFaIYxuhLHVx9P7ahneyobTGoUYqFOKoJxHK1UCI4zuJUCyI45j851F6BZJ9QSs3UZgcdSRCIY526S/hE0kf6UNBH4QCE4k1ykjZdzt3hFJBJY4SoRgpxlFKHUrrjkc9jlLqUGq03BfKHJZ8KNxRtpENhTvK10iFQhz1UofCaaWf1KFYEcc52Uv49zh6RpI5OKmJsj6QmQ9sb+lDIYY+0oZCIH3JrlFwDaF0xCV87MocR4lQKqjEUSIUI8U4SilD4Utd/aUMpUWP+0MZAyOUhZuHFrKhEMc1UqEQR730oRBHHylDIY7++PsogwLJtvNJOVGOMDnqSIRCHO3ShkIcfaULhUDG4PMoMCEUmBDKINlOgYQCk1ShZPst9iRVKBiHUGBCKDAhFJhIh5LtDu9I8h8zgE3Yez1Rt8JRp5j0qQd2hPJgUSdhyFCivtmRhQwFj0coMGF7DBP322Ol9YjnrbPrU49SJN65DUUxEs+v2W0o8MVlKJ5/s0bz+tpdhgJ/2B7DhIkCk6nXUbyej72aeZ2FiQKTaaEwTa6b+Z4xUYKZFcuUUJgm8bA9hgmnHpgQCkz+Ayc4yBiyj/OJAAAAAElFTkSuQmCC" alt="The Unknown Software" style={{ width: 62, height: "auto", flexShrink: 0, display: "block" }} />
             <div>
               <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 22, letterSpacing: 2, lineHeight: 1.05 }}>THE UNKNOWN<br /><span style={{ color: C.accent }}>SOFTWARE</span></div>
               <div style={{ fontSize: 9, color: C.text, letterSpacing: 2, marginTop: 4, lineHeight: 1.5 }}>YOUR COACH TRADING JOURNAL</div>
