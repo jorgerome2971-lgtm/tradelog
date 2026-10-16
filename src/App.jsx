@@ -682,7 +682,7 @@ function Dashboard({ trades, stats, accounts, withdrawals, backtests, omissions,
     const rrNum = (stats && stats.avgLoss) ? +(stats.avgWin / Math.abs(stats.avgLoss)).toFixed(2) : null;
     const clamp = x => Math.max(0.05, Math.min(1, x));
     const calScore = (() => { const b = calBuckets.filter(x => x.pct != null); if (!b.length) return 0.3; const gap = b.reduce((a, x) => a + Math.abs(x.pct - x.exp), 0) / b.length; return clamp(1 - gap / 40); })();
-    const radar = { "Disciplina": clamp((avgRules || 0) / 8), "Calibración": calScore, "R:R": clamp((rrNum || 0.5) / 3), "Consistencia": clamp((wr(closed) || 0) / 100), "Harvest": clamp((harvest || 0) / 100), "Paciencia": clamp(perfectRate) };
+    const radar = { "Discipline": clamp((avgRules || 0) / 8), "Calibration": calScore, "R:R": clamp((rrNum || 0.5) / 3), "Consistency": clamp((wr(closed) || 0) / 100), "Harvest": clamp((harvest || 0) / 100), "Patience": clamp(perfectRate) };
     const accs = (accounts || []).map(a => {
       const apnl = trades.filter(t => t.accountId === a.id).reduce((s, t) => s + (t.pnl || 0), 0);
       const wd = (withdrawals || []).filter(w => w.accountId === a.id).reduce((s, w) => s + (w.amount || 0), 0);
@@ -718,22 +718,22 @@ function Dashboard({ trades, stats, accounts, withdrawals, backtests, omissions,
   const eqUp = cc.netClosed >= 0;
 
   // radar geometry
-  const RAX = ["Disciplina", "Calibración", "R:R", "Consistencia", "Harvest", "Paciencia"];
+  const RAX = ["Discipline", "Calibration", "R:R", "Consistency", "Harvest", "Patience"];
   const rcx = 120, rcy = 120, RR = 84;
   const ang = i => (-90 + i * 60) * Math.PI / 180;
   const rp = (i, f) => [rcx + Math.cos(ang(i)) * RR * f, rcy + Math.sin(ang(i)) * RR * f];
   const ring = f => RAX.map((_, i) => rp(i, f).map(z => z.toFixed(1)).join(",")).join(" ");
   const dataPoly = RAX.map((k, i) => rp(i, cc.radar[k]).map(z => z.toFixed(1)).join(",")).join(" ");
-  const lblPos = i => { const [x, y] = rp(i, 1.2); return { x: x.toFixed(1), y: (y + 3).toFixed(1), anchor: Math.abs(Math.cos(ang(i))) < 0.3 ? "middle" : (Math.cos(ang(i)) > 0 ? "start" : "end") }; };
+  const lblPos = i => { const [x, y] = rp(i, 1.18); return { x: x.toFixed(1), y: (y + 3).toFixed(1), anchor: Math.abs(Math.cos(ang(i))) < 0.3 ? "middle" : (Math.cos(ang(i)) > 0 ? "start" : "end") }; };
 
   const RULES = typeof TRADE_RULES !== "undefined" ? TRADE_RULES : {};
   const marItems = [
-    cc.bestPair && `MEJOR PAR  ·  ${cc.bestPair[0]} ${fmt(cc.bestPair[1])}`,
-    cc.worstSess && `PEOR SESIÓN  ·  ${cc.worstSess[0]} ${fmt(cc.worstSess[1])}`,
-    cc.bestDay && `MEJOR DÍA  ·  ${cc.bestDay.d} ${cc.bestDay.wr}% WR`,
-    cc.streakType && `RACHA  ·  ${cc.streakType === "win" ? "▲" : "▼"} ${cc.streak} ${cc.streakType === "win" ? "WINS" : "LOSSES"}`,
+    cc.bestPair && `BEST PAIR  ·  ${cc.bestPair[0]} ${fmt(cc.bestPair[1])}`,
+    cc.worstSess && `WORST SESSION  ·  ${cc.worstSess[0]} ${fmt(cc.worstSess[1])}`,
+    cc.bestDay && `BEST DAY  ·  ${cc.bestDay.d} ${cc.bestDay.wr}% WR`,
+    cc.streakType && `STREAK  ·  ${cc.streakType === "win" ? "▲" : "▼"} ${cc.streak} ${cc.streakType === "win" ? "WINS" : "LOSSES"}`,
     cc.harvest != null && `HARVEST RATE  ·  ${cc.harvest}%`,
-    (cc.mostBroken && cc.mostBroken[1] > 0) && `REGLA MÁS ROTA  ·  ${RULES[Number(cc.mostBroken[0])] || ("R" + cc.mostBroken[0])}`,
+    (cc.mostBroken && cc.mostBroken[1] > 0) && `MOST BROKEN RULE  ·  ${RULES[Number(cc.mostBroken[0])] || ("R" + cc.mostBroken[0])}`,
   ].filter(Boolean);
 
   const kpis = [
@@ -775,9 +775,9 @@ function Dashboard({ trades, stats, accounts, withdrawals, backtests, omissions,
 
         {/* EDGE RADAR */}
         <div style={{ ...panel, boxShadow: `0 0 18px ${C.accent}22` }}>
-          <Lab>◈ EDGE MAP · TU VENTAJA REAL</Lab>
+          <Lab>◈ EDGE MAP · YOUR REAL EDGE</Lab>
           <div style={{ display: "flex", justifyContent: "center" }}>
-            <svg viewBox="0 0 240 240" style={{ width: "100%", maxWidth: 290 }}>
+            <svg viewBox="-54 -4 348 252" style={{ width: "100%", maxWidth: 320 }}>
               <g fill="none" stroke={C.border} strokeWidth="1">
                 <polygon points={ring(1)} /><polygon points={ring(0.66)} /><polygon points={ring(0.33)} />
               </g>
@@ -793,7 +793,7 @@ function Dashboard({ trades, stats, accounts, withdrawals, backtests, omissions,
       <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 10, marginTop: 10 }}>
         {/* EXECUTION TAPE */}
         <div style={panel}>
-          <Lab>▸ EXECUTION TAPE · ÚLTIMOS TRADES</Lab>
+          <Lab>▸ EXECUTION TAPE · LATEST TRADES</Lab>
           <div style={{ fontFamily: mono, fontSize: 10.5 }}>
             {cc.tape.map((t, i) => {
               const win = t.result === "win";
@@ -811,18 +811,18 @@ function Dashboard({ trades, stats, accounts, withdrawals, backtests, omissions,
 
         {/* DISCIPLINE + CALIBRATION */}
         <div style={panel}>
-          <Lab>◉ DISCIPLINA & CALIBRACIÓN</Lab>
+          <Lab>◉ DISCIPLINE & CALIBRATION</Lab>
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
             <svg width="92" height="92" viewBox="0 0 92 92" style={{ flexShrink: 0 }}>
               <circle cx="46" cy="46" r="38" fill="none" stroke={C.border} strokeWidth="9" />
               <circle cx="46" cy="46" r="38" fill="none" stroke={C.accent} strokeWidth="9" strokeLinecap="round" strokeDasharray="238.8" strokeDashoffset={238.8 * (1 - (cc.avgRules || 0) / 8)} transform="rotate(-90 46 46)" style={{ filter: `drop-shadow(0 0 5px ${C.accent}66)` }} />
               <text x="46" y="44" textAnchor="middle" fontFamily="Bebas Neue, sans-serif" fontSize="24" fill={C.accent}>{cc.avgRules != null ? cc.avgRules : "—"}</text>
-              <text x="46" y="58" textAnchor="middle" style={{ fontFamily: mono, fontSize: 8, fill: C.dim }}>/ 8 REGLAS</text>
+              <text x="46" y="58" textAnchor="middle" style={{ fontFamily: mono, fontSize: 8, fill: C.dim }}>/ 8 RULES</text>
             </svg>
             <div>
               <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 30, color: C.accent, lineHeight: 1 }}>{cc.wr8 != null ? cc.wr8 + "%" : "—"}</div>
-              <div style={{ fontFamily: mono, fontSize: 9.5, color: C.dim, marginTop: 3 }}>win rate con 8/8 reglas</div>
-              {cc.wrBroken != null && <div style={{ fontFamily: mono, fontSize: 9.5, color: C.soft || C.dim, marginTop: 6 }}>vs {cc.wrBroken}% rompiendo alguna</div>}
+              <div style={{ fontFamily: mono, fontSize: 9.5, color: C.dim, marginTop: 3 }}>win rate at 8/8 rules</div>
+              {cc.wrBroken != null && <div style={{ fontFamily: mono, fontSize: 9.5, color: C.soft || C.dim, marginTop: 6 }}>vs {cc.wrBroken}% breaking one</div>}
             </div>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 7, marginTop: 12 }}>
@@ -846,7 +846,7 @@ function Dashboard({ trades, stats, accounts, withdrawals, backtests, omissions,
               <div key={i} style={{ border: `1px solid ${C.border}`, background: C.panel2, borderRadius: 8, padding: "10px 11px" }}>
                 <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 15, letterSpacing: 1 }}>{a.name}</div>
                 <div style={{ fontFamily: mono, fontSize: 11, color: a.pnl >= 0 ? C.accent : C.red, marginTop: 3 }}>{fmt(a.pnl)} <span style={{ color: C.dim }}>P&L</span></div>
-                <div style={{ fontFamily: mono, fontSize: 9, color: C.dim }}>retirado {fmt(a.wd)} · neto {fmt(a.net)}</div>
+                <div style={{ fontFamily: mono, fontSize: 9, color: C.dim }}>withdrawn {fmt(a.wd)} · net {fmt(a.net)}</div>
               </div>
             ))}
           </div>
