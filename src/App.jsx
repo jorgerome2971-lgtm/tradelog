@@ -29,6 +29,8 @@ const css = `
   @keyframes spin { to { transform: rotate(360deg); } }
   @keyframes fadein { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
   .fadein { animation: fadein .2s ease; }
+  @keyframes ccpulse { 0%,100% { opacity:1; } 50% { opacity:.3; } }
+  @keyframes ccmarq { from { transform:translateX(0); } to { transform:translateX(-50%); } }
   ::-webkit-scrollbar { width: 4px; background: #0b0f17; }
   ::-webkit-scrollbar-thumb { background: #2b333f; border-radius: 4px; }
   input, select, textarea { outline: none; font-family: 'Inter', sans-serif; }
@@ -548,7 +550,7 @@ export default function App() {
         </div>
 
         <div className="fadein tus-content" style={{ flex: 1, padding: "22px 26px", overflowY: "auto" }}>
-          {tab === "dashboard" && <Dashboard trades={trades} stats={stats} patterns={patterns} acctName={acctName} patName={patName} onViewTrade={id => setModal({ type: "view-trade", id })} />}
+          {tab === "dashboard" && <Dashboard trades={trades} stats={stats} accounts={accounts} withdrawals={withdrawals} backtests={backtests} omissions={omissions} acctName={acctName} patName={patName} onViewTrade={id => setModal({ type: "view-trade", id })} />}
           {tab === "trades" && <TradeLog trades={trades} acctName={acctName} patName={patName} onView={id => setModal({ type: "view-trade", id })} />}
           {tab === "patterns" && <PatternLog patterns={patterns} trades={trades} onView={id => setModal({ type: "view-pattern", id })} />}
           {tab === "compass" && <Compass trades={trades} stats={stats} patName={patName} backtests={backtests} patternLib={patternLib} omissions={omissions} aiResult={aiResult} setAiResult={setAiResult} aiLoading={aiLoading} setAiLoading={setAiLoading} />}
@@ -642,56 +644,223 @@ export default function App() {
 }
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
-function Dashboard({ trades, stats, patterns, acctName, patName, onViewTrade }) {
-  const pm = {};
-  trades.forEach(t => {
-    if (!t.patternId) return;
-    if (!pm[t.patternId]) pm[t.patternId] = { wins: 0, total: 0, pnl: 0 };
-    pm[t.patternId].total++;
-    pm[t.patternId].pnl += t.pnl || 0;
-    if (t.result === "win") pm[t.patternId].wins++;
-  });
-  const topPatterns = Object.entries(pm).sort((a, b) => b[1].pnl - a[1].pnl).slice(0, 5);
+function Dashboard({ trades, stats, accounts, withdrawals, backtests, omissions, acctName, patName, onViewTrade }) {
+  const mono = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+  const [now, setNow] = useState(new Date());
+  useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);
+  const p2 = n => String(n).padStart(2, "0");
+  const clk = `${p2(now.getUTCHours())}:${p2(now.getUTCMinutes())}:${p2(now.getUTCSeconds())} UTC`;
+
+  const cc = useMemo(() => {
+    const wr = arr => { const w = arr.filter(t => t.result === "win").length, l = arr.filter(t => t.result === "loss").length; return (w + l) ? Math.round(w / (w + l) * 100) : null; };
+    const closed = trades.filter(t => t.result === "win" || t.result === "loss");
+    const seq = [...closed].sort((a, b) => ((a.date || "") + (a.time || "")).localeCompare((b.date || "") + (b.time || "")));
+    let run = 0, peak = 0, maxDD = 0; const pts = [];
+    seq.forEach(t => { run += t.pnl || 0; peak = Math.max(peak, run); maxDD = Math.max(maxDD, peak - run); pts.push(run); });
+    let streak = 0, streakType = null;
+    for (let i = seq.length - 1; i >= 0; i--) { if (streakType === null) { streakType = seq[i].result; streak = 1; } else if (seq[i].result === streakType) streak++; else break; }
+    const rec = closed.filter(t => Array.isArray(t.rules) && t.rules.length);
+    const avgRules = rec.length ? +(rec.reduce((a, t) => a + t.rules.length, 0) / rec.length).toFixed(1) : null;
+    const perfect = rec.filter(t => t.rules.length === 8);
+    const wr8 = wr(perfect), wrBroken = wr(rec.filter(t => t.rules.length < 8));
+    const perfectRate = rec.length ? perfect.length / rec.length : 0;
+    const calSrc = [...trades, ...(backtests || [])].filter(x => x.conviction != null && x.conviction !== "" && (x.result === "win" || x.result === "loss"));
+    const calBuckets = [{ k: "conv 8-10", lo: 8, hi: 10, exp: 90 }, { k: "conv 6-7", lo: 6, hi: 7, exp: 70 }, { k: "conv 4-5", lo: 4, hi: 5, exp: 50 }].map(b => {
+      const items = calSrc.filter(x => { const c = Number(x.conviction); return c >= b.lo && c <= b.hi; });
+      return { ...b, n: items.length, pct: items.length ? Math.round(items.filter(x => x.result === "win").length / items.length * 100) : null };
+    });
+    const sumBy = key => { const m = {}; closed.forEach(t => { const v = t[key]; if (!v) return; m[v] = (m[v] || 0) + (t.pnl || 0); }); return m; };
+    const bestPair = Object.entries(sumBy("pair")).sort((a, b) => b[1] - a[1])[0];
+    const worstSess = Object.entries(sumBy("session")).sort((a, b) => a[1] - b[1])[0];
+    const dayMap = {}; closed.forEach(t => { if (!t.day) return; (dayMap[t.day] = dayMap[t.day] || []).push(t); });
+    const bestDay = Object.entries(dayMap).map(([d, arr]) => ({ d, wr: wr(arr), n: arr.length })).filter(x => x.n >= 3 && x.wr != null).sort((a, b) => b.wr - a.wr)[0];
+    const brokenCount = {}; for (let r = 1; r <= 8; r++) brokenCount[r] = 0;
+    rec.forEach(t => { for (let r = 1; r <= 8; r++) { if (!t.rules.includes(r)) brokenCount[r]++; } });
+    const mostBroken = Object.entries(brokenCount).sort((a, b) => b[1] - a[1])[0];
+    const oms = omissions || []; const taken = closed.length;
+    const harvest = (taken + oms.length) > 0 ? Math.round(taken / (taken + oms.length) * 100) : null;
+    const rrNum = (stats && stats.avgLoss) ? +(stats.avgWin / Math.abs(stats.avgLoss)).toFixed(2) : null;
+    const clamp = x => Math.max(0.05, Math.min(1, x));
+    const calScore = (() => { const b = calBuckets.filter(x => x.pct != null); if (!b.length) return 0.3; const gap = b.reduce((a, x) => a + Math.abs(x.pct - x.exp), 0) / b.length; return clamp(1 - gap / 40); })();
+    const radar = { "Disciplina": clamp((avgRules || 0) / 8), "Calibración": calScore, "R:R": clamp((rrNum || 0.5) / 3), "Consistencia": clamp((wr(closed) || 0) / 100), "Harvest": clamp((harvest || 0) / 100), "Paciencia": clamp(perfectRate) };
+    const accs = (accounts || []).map(a => {
+      const apnl = trades.filter(t => t.accountId === a.id).reduce((s, t) => s + (t.pnl || 0), 0);
+      const wd = (withdrawals || []).filter(w => w.accountId === a.id).reduce((s, w) => s + (w.amount || 0), 0);
+      return { name: a.name, pnl: apnl, wd, net: apnl - wd };
+    }).sort((x, y) => y.pnl - x.pnl).slice(0, 3);
+    return { pts, netClosed: run, peak: Math.round(peak), maxDD: Math.round(maxDD), streak, streakType, avgRules, wr8, wrBroken, calBuckets, bestPair, worstSess, bestDay, mostBroken, harvest, rrNum, radar, accs, winrate: wr(closed), tape: [...closed].reverse().slice(0, 7) };
+  }, [trades, backtests, omissions, accounts, withdrawals, stats]);
+
+  const Dot = () => <span style={{ width: 7, height: 7, borderRadius: "50%", background: C.accent, boxShadow: `0 0 8px ${C.accent}`, display: "inline-block", animation: "ccpulse 1.6s infinite" }} />;
+  const Lab = ({ children }) => <div style={{ fontFamily: mono, fontSize: 9, letterSpacing: 2, color: C.muted, marginBottom: 10 }}>{children}</div>;
+  const panel = { background: C.panel, border: `1px solid ${C.border}`, borderRadius: 11, padding: "14px 15px" };
+
+  // top status bar + kpis always visible
+  const Bar = (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", border: `1px solid ${C.border}`, background: "#0e141dcc", borderRadius: 10, padding: "9px 13px", marginBottom: 12 }}>
+      <span style={{ fontFamily: mono, fontSize: 9.5, letterSpacing: 1, color: C.accent, border: `1px solid ${C.accent}44`, borderRadius: 20, padding: "3px 9px" }}>// COMMAND CENTER</span>
+      {cc.avgRules != null && <span style={{ fontFamily: mono, fontSize: 9.5, letterSpacing: 1, color: C.soft || C.dim, border: `1px solid ${C.border}`, borderRadius: 20, padding: "3px 9px" }}>DISCIPLINE: {cc.avgRules} / 8</span>}
+      <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 7, fontFamily: mono, fontSize: 9.5, color: C.dim }}><Dot /> LIVE <span style={{ color: C.dim }}>{clk}</span></span>
+    </div>
+  );
+
+  if (!trades.length) return (
+    <div>{Bar}<Empty text="Log your first trade to light up the command center." /></div>
+  );
+
+  // equity geometry
+  const EW = 600, EH = 140; const pts = cc.pts.length ? cc.pts : [0];
+  const mn = Math.min(0, ...pts), mx = Math.max(0, ...pts), rng = (mx - mn) || 1;
+  const xy = (v, i) => { const x = pts.length <= 1 ? EW / 2 : (i / (pts.length - 1)) * EW; const y = EH - ((v - mn) / rng) * EH; return [x, y]; };
+  const eqPoly = pts.map((v, i) => xy(v, i).map(z => z.toFixed(1)).join(",")).join(" ");
+  const [lx, lyy] = xy(pts[pts.length - 1], pts.length - 1);
+  const zeroY = EH - ((0 - mn) / rng) * EH;
+  const eqUp = cc.netClosed >= 0;
+
+  // radar geometry
+  const RAX = ["Disciplina", "Calibración", "R:R", "Consistencia", "Harvest", "Paciencia"];
+  const rcx = 120, rcy = 120, RR = 84;
+  const ang = i => (-90 + i * 60) * Math.PI / 180;
+  const rp = (i, f) => [rcx + Math.cos(ang(i)) * RR * f, rcy + Math.sin(ang(i)) * RR * f];
+  const ring = f => RAX.map((_, i) => rp(i, f).map(z => z.toFixed(1)).join(",")).join(" ");
+  const dataPoly = RAX.map((k, i) => rp(i, cc.radar[k]).map(z => z.toFixed(1)).join(",")).join(" ");
+  const lblPos = i => { const [x, y] = rp(i, 1.2); return { x: x.toFixed(1), y: (y + 3).toFixed(1), anchor: Math.abs(Math.cos(ang(i))) < 0.3 ? "middle" : (Math.cos(ang(i)) > 0 ? "start" : "end") }; };
+
+  const RULES = typeof TRADE_RULES !== "undefined" ? TRADE_RULES : {};
+  const marItems = [
+    cc.bestPair && `MEJOR PAR  ·  ${cc.bestPair[0]} ${fmt(cc.bestPair[1])}`,
+    cc.worstSess && `PEOR SESIÓN  ·  ${cc.worstSess[0]} ${fmt(cc.worstSess[1])}`,
+    cc.bestDay && `MEJOR DÍA  ·  ${cc.bestDay.d} ${cc.bestDay.wr}% WR`,
+    cc.streakType && `RACHA  ·  ${cc.streakType === "win" ? "▲" : "▼"} ${cc.streak} ${cc.streakType === "win" ? "WINS" : "LOSSES"}`,
+    cc.harvest != null && `HARVEST RATE  ·  ${cc.harvest}%`,
+    (cc.mostBroken && cc.mostBroken[1] > 0) && `REGLA MÁS ROTA  ·  ${RULES[Number(cc.mostBroken[0])] || ("R" + cc.mostBroken[0])}`,
+  ].filter(Boolean);
+
+  const kpis = [
+    { k: "NET P&L", v: fmt(stats.netPnl), c: stats.netPnl >= 0 ? C.accent : C.red },
+    { k: "WIN RATE", v: stats.winrate, c: C.text },
+    { k: "AVG R:R", v: cc.rrNum != null ? cc.rrNum + "R" : "—", c: C.soft || C.text },
+    { k: "TRADES", v: stats.total, c: C.text },
+    { k: "STREAK", v: cc.streakType ? `${cc.streakType === "win" ? "▲" : "▼"} ${cc.streak}${cc.streakType === "win" ? "W" : "L"}` : "—", c: cc.streakType === "loss" ? C.red : C.accent },
+    { k: "8/8 RULES", v: cc.wr8 != null ? cc.wr8 + "%" : "—", c: C.accent },
+  ];
 
   return (
     <div>
-      <div className="stat7" style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 10, marginBottom: 22 }}>
-        {[
-          { label: "TOTAL P&L", val: fmt(stats.totalPnl), color: stats.totalPnl >= 0 ? C.green : C.red },
-          { label: "TRADES", val: stats.total },
-          { label: "WINNERS", val: stats.wins, color: C.green },
-          { label: "LOSERS", val: stats.losses, color: C.red },
-          { label: "BREAKEVEN", val: stats.breakevens, color: C.muted },
-          { label: "WIN RATE", val: stats.winrate },
-          { label: "R:R", val: stats.rr !== "—" ? stats.rr + ":1" : "—" },
-        ].map(s => (
-          <div key={s.label} style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "13px 14px" }}>
-            <div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, marginBottom: 8 }}>{s.label}</div>
-            <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 20, color: s.color || C.text }}>{s.val}</div>
+      {Bar}
+
+      <div className="stat7" style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", gap: 8, marginBottom: 12 }}>
+        {kpis.map(s => (
+          <div key={s.k} style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 9, padding: "9px 11px" }}>
+            <div style={{ fontFamily: mono, fontSize: 8, letterSpacing: 1.5, color: C.muted, marginBottom: 5 }}>{s.k}</div>
+            <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 23, lineHeight: 1, color: s.c }}>{s.v}</div>
           </div>
         ))}
       </div>
-      <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-        <div>
-          <SLabel>RECENT TRADES</SLabel>
-          {!trades.length ? <Empty text="No trades yet" /> :
-            [...trades].reverse().slice(0, 5).map(t => <TradeRow key={t.id} t={t} acctName={acctName} patName={patName} onClick={() => onViewTrade(t.id)} />)}
+
+      <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 10 }}>
+        {/* EQUITY */}
+        <div style={{ ...panel, boxShadow: `0 0 18px ${C.accent}22` }}>
+          <Lab><Dot /> EQUITY CURVE · CUMULATIVE P&L</Lab>
+          <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 34, color: eqUp ? C.accent : C.red, lineHeight: 1 }}>{fmt(cc.netClosed)}</div>
+          <div style={{ fontFamily: mono, fontSize: 10, color: C.dim, marginTop: 2 }}>peak {fmt(cc.peak)} · max drawdown −{fmt(cc.maxDD).replace("-", "").replace("+", "")} · {cc.pts.length} trades</div>
+          <svg viewBox={`0 0 ${EW} ${EH}`} preserveAspectRatio="none" style={{ width: "100%", height: 150, display: "block", marginTop: 6 }}>
+            <defs><linearGradient id="ccEq" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={C.accent} stopOpacity="0.28" /><stop offset="100%" stopColor={C.accent} stopOpacity="0" /></linearGradient></defs>
+            {mn < 0 && mx > 0 && <line x1="0" y1={zeroY} x2={EW} y2={zeroY} stroke={C.border} strokeWidth="1" strokeDasharray="3,4" />}
+            {pts.length > 1 && <polygon fill="url(#ccEq)" points={`0,${EH} ${eqPoly} ${EW},${EH}`} />}
+            {pts.length > 1 && <polyline fill="none" stroke={C.accent} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" points={eqPoly} style={{ filter: `drop-shadow(0 0 4px ${C.accent}66)` }} />}
+            <circle cx={lx} cy={lyy} r="3.5" fill={C.accent} style={{ filter: `drop-shadow(0 0 5px ${C.accent})` }} />
+          </svg>
         </div>
-        <div>
-          <SLabel>TOP PATTERNS</SLabel>
-          {!topPatterns.length ? <Empty text="No pattern data yet" /> :
-            topPatterns.map(([id, d]) => (
-              <div key={id} style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "12px 14px", marginBottom: 6, display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ width: 6, height: 6, borderRadius: "50%", background: C.accent, flexShrink: 0 }} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700 }}>{patName(id)}</div>
-                  <div style={{ fontSize: 10, color: C.dim, marginTop: 2 }}>{d.wins}/{d.total} wins</div>
-                </div>
-                <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 18, color: d.pnl >= 0 ? C.green : C.red }}>{fmt(d.pnl)}</div>
-              </div>
-            ))}
+
+        {/* EDGE RADAR */}
+        <div style={{ ...panel, boxShadow: `0 0 18px ${C.accent}22` }}>
+          <Lab>◈ EDGE MAP · TU VENTAJA REAL</Lab>
+          <div style={{ display: "flex", justifyContent: "center" }}>
+            <svg viewBox="0 0 240 240" style={{ width: "100%", maxWidth: 290 }}>
+              <g fill="none" stroke={C.border} strokeWidth="1">
+                <polygon points={ring(1)} /><polygon points={ring(0.66)} /><polygon points={ring(0.33)} />
+              </g>
+              <g stroke={C.border} strokeWidth="1">{RAX.map((_, i) => { const [x, y] = rp(i, 1); return <line key={i} x1={rcx} y1={rcy} x2={x.toFixed(1)} y2={y.toFixed(1)} />; })}</g>
+              <polygon points={dataPoly} fill={`${C.accent}22`} stroke={C.accent} strokeWidth="2" style={{ filter: `drop-shadow(0 0 6px ${C.accent}66)` }} />
+              {RAX.map((k, i) => { const [x, y] = rp(i, cc.radar[k]); return <circle key={i} cx={x.toFixed(1)} cy={y.toFixed(1)} r="2.6" fill={C.accent} />; })}
+              {RAX.map((k, i) => { const l = lblPos(i); return <text key={i} x={l.x} y={l.y} textAnchor={l.anchor} style={{ fontFamily: mono, fontSize: 8.5, fill: C.dim }}>{k.toUpperCase()}</text>; })}
+            </svg>
+          </div>
         </div>
       </div>
+
+      <div className="rgrid" style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 10, marginTop: 10 }}>
+        {/* EXECUTION TAPE */}
+        <div style={panel}>
+          <Lab>▸ EXECUTION TAPE · ÚLTIMOS TRADES</Lab>
+          <div style={{ fontFamily: mono, fontSize: 10.5 }}>
+            {cc.tape.map((t, i) => {
+              const win = t.result === "win";
+              return (
+                <div key={t.id || i} onClick={() => onViewTrade && onViewTrade(t.id)} style={{ display: "grid", gridTemplateColumns: "48px 1fr auto auto", gap: 8, alignItems: "center", padding: "6px 0", borderBottom: i < cc.tape.length - 1 ? `1px solid ${C.border}55` : "none", cursor: "pointer" }}>
+                  <span style={{ fontSize: 8, letterSpacing: 1, borderRadius: 3, padding: "1px 5px", border: `1px solid ${win ? C.accent : C.red}55`, color: win ? C.accent : C.red, textAlign: "center" }}>{win ? "WIN" : "LOSS"}</span>
+                  <span style={{ color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.pair} <span style={{ color: C.muted, fontSize: 9 }}>· {t.session || "—"}{Array.isArray(t.rules) && t.rules.length ? ` · ${t.rules.length}/8` : ""}</span></span>
+                  <span style={{ color: win ? C.accent : C.red, fontSize: 9.5 }}>{t.conviction ? `conv ${t.conviction}` : ""}</span>
+                  <span style={{ color: win ? C.accent : C.red, textAlign: "right" }}>{fmt(t.pnl)}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* DISCIPLINE + CALIBRATION */}
+        <div style={panel}>
+          <Lab>◉ DISCIPLINA & CALIBRACIÓN</Lab>
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <svg width="92" height="92" viewBox="0 0 92 92" style={{ flexShrink: 0 }}>
+              <circle cx="46" cy="46" r="38" fill="none" stroke={C.border} strokeWidth="9" />
+              <circle cx="46" cy="46" r="38" fill="none" stroke={C.accent} strokeWidth="9" strokeLinecap="round" strokeDasharray="238.8" strokeDashoffset={238.8 * (1 - (cc.avgRules || 0) / 8)} transform="rotate(-90 46 46)" style={{ filter: `drop-shadow(0 0 5px ${C.accent}66)` }} />
+              <text x="46" y="44" textAnchor="middle" fontFamily="Bebas Neue, sans-serif" fontSize="24" fill={C.accent}>{cc.avgRules != null ? cc.avgRules : "—"}</text>
+              <text x="46" y="58" textAnchor="middle" style={{ fontFamily: mono, fontSize: 8, fill: C.dim }}>/ 8 REGLAS</text>
+            </svg>
+            <div>
+              <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 30, color: C.accent, lineHeight: 1 }}>{cc.wr8 != null ? cc.wr8 + "%" : "—"}</div>
+              <div style={{ fontFamily: mono, fontSize: 9.5, color: C.dim, marginTop: 3 }}>win rate con 8/8 reglas</div>
+              {cc.wrBroken != null && <div style={{ fontFamily: mono, fontSize: 9.5, color: C.soft || C.dim, marginTop: 6 }}>vs {cc.wrBroken}% rompiendo alguna</div>}
+            </div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 7, marginTop: 12 }}>
+            {cc.calBuckets.map(b => (
+              <div key={b.k} style={{ display: "flex", alignItems: "center", gap: 9, fontFamily: mono, fontSize: 10 }}>
+                <span style={{ width: 54, color: C.text }}>{b.k}</span>
+                <span style={{ flex: 1, height: 6, borderRadius: 3, background: C.bg, overflow: "hidden" }}><i style={{ display: "block", height: "100%", borderRadius: 3, width: `${b.pct || 0}%`, background: b.pct == null ? C.muted : (b.pct >= b.exp - 12 ? C.accent : C.red) }} /></span>
+                <span style={{ width: 54, textAlign: "right", color: b.pct == null ? C.muted : C.text }}>{b.pct == null ? "—" : b.pct + "%"} <span style={{ color: C.muted }}>n{b.n}</span></span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ACCOUNTS */}
+      {cc.accs.length > 0 && (
+        <div style={{ ...panel, marginTop: 10 }}>
+          <Lab>▦ PROP FIRM ACCOUNTS</Lab>
+          <div className="rgrid" style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(3, cc.accs.length)},1fr)`, gap: 8 }}>
+            {cc.accs.map((a, i) => (
+              <div key={i} style={{ border: `1px solid ${C.border}`, background: C.panel2, borderRadius: 8, padding: "10px 11px" }}>
+                <div style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: 15, letterSpacing: 1 }}>{a.name}</div>
+                <div style={{ fontFamily: mono, fontSize: 11, color: a.pnl >= 0 ? C.accent : C.red, marginTop: 3 }}>{fmt(a.pnl)} <span style={{ color: C.dim }}>P&L</span></div>
+                <div style={{ fontFamily: mono, fontSize: 9, color: C.dim }}>retirado {fmt(a.wd)} · neto {fmt(a.net)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* MARQUEE */}
+      {marItems.length > 0 && (
+        <div style={{ margin: "10px 0 4px", border: `1px solid ${C.border}`, background: "#0e141dcc", borderRadius: 9, overflow: "hidden", whiteSpace: "nowrap" }}>
+          <div style={{ display: "inline-block", padding: "8px 0", fontFamily: mono, fontSize: 10, color: C.dim, animation: "ccmarq 28s linear infinite" }}>
+            {[...marItems, ...marItems].map((m, i) => <span key={i} style={{ margin: "0 22px" }}>{m}</span>)}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
